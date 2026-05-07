@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* 印刷（PDF出力）スタイル */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  /* margin: 0 でブラウザ既定のヘッダー（タイトル・日付）と
+     フッター（URL・ページ番号）を完全に非表示にする */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  /* @page margin: 0 の代わりにコンテナで余白を確保 */
+  main {
+    padding: 10mm 14mm 14mm !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
+  #print-area {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* テーブル行を詰める */
+  #print-area td,
+  #print-area th {
+    padding-top: 3pt !important;
+    padding-bottom: 3pt !important;
+  }
+
+  /* セクションヘッダーの余白を詰める */
+  #print-area .py-5 {
+    padding-top: 6pt !important;
+    padding-bottom: 6pt !important;
+  }
+
+  #print-area .py-6 {
+    padding-top: 8pt !important;
+    padding-bottom: 8pt !important;
+  }
+
+  /* 数値入力をテキストとして見せる */
+  input[type="number"] {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    display: none;
+  }
+
+  /* 行の途中でページが切れないようにする */
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  tfoot {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* セクション間強制ページ区切り（用語解説のみ） */
+  .print-break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  /* 全ページ共通フッター（会社名・担当者・電話番号） */
+  .print-page-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 10mm;
+    background: white;
+    border-top: 0.5pt solid #e2e8f0;
+    font-size: 8pt;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 0 14mm;
+  }
+}
