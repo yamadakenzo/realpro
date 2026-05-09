@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
@@ -38,6 +38,68 @@ export default function LoginPage() {
   }
 
   return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label
+          htmlFor="email"
+          className="block text-xs font-medium text-[#1a2e20] mb-1.5"
+        >
+          メールアドレス
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full px-3 py-2.5 bg-white border border-[#b8d898] rounded-lg text-sm text-[#1a2e20] placeholder:text-[#90b098] focus:outline-none focus:ring-2 focus:ring-[#2d5e3a] focus:border-transparent"
+          placeholder="you@example.com"
+        />
+      </div>
+
+      <div>
+        <label
+          htmlFor="password"
+          className="block text-xs font-medium text-[#1a2e20] mb-1.5"
+        >
+          パスワード
+        </label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full px-3 py-2.5 bg-white border border-[#b8d898] rounded-lg text-sm text-[#1a2e20] focus:outline-none focus:ring-2 focus:ring-[#2d5e3a] focus:border-transparent"
+        />
+      </div>
+
+      {error && (
+        <p
+          role="alert"
+          className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2"
+        >
+          {error}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full py-2.5 bg-[#2d5e3a] text-white text-sm font-medium rounded-lg hover:bg-[#1a2e20] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        {pending ? "ログイン中..." : "ログイン"}
+      </button>
+    </form>
+  );
+}
+
+export default function LoginPage() {
+  return (
     <div className="min-h-screen bg-[#f7f9f4] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md bg-white border border-[#dce8d4] rounded-2xl shadow-sm p-7 sm:p-8">
         <div className="flex items-center gap-3 mb-6">
@@ -64,63 +126,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-xs font-medium text-[#1a2e20] mb-1.5"
-            >
-              メールアドレス
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2.5 bg-white border border-[#b8d898] rounded-lg text-sm text-[#1a2e20] placeholder:text-[#90b098] focus:outline-none focus:ring-2 focus:ring-[#2d5e3a] focus:border-transparent"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-xs font-medium text-[#1a2e20] mb-1.5"
-            >
-              パスワード
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2.5 bg-white border border-[#b8d898] rounded-lg text-sm text-[#1a2e20] focus:outline-none focus:ring-2 focus:ring-[#2d5e3a] focus:border-transparent"
-            />
-          </div>
-
-          {error && (
-            <p
-              role="alert"
-              className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2"
-            >
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={pending}
-            className="w-full py-2.5 bg-[#2d5e3a] text-white text-sm font-medium rounded-lg hover:bg-[#1a2e20] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {pending ? "ログイン中..." : "ログイン"}
-          </button>
-        </form>
+        <Suspense fallback={<div className="h-[260px]" />}>
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   );
