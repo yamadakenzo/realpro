@@ -3,6 +3,16 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --color-bg-page: #f2f4f0;
+  --color-bg-card: #ffffff;
+  --color-bg-subtle: #f7faf4;
+  --color-border: #dce8d4;
+  --color-border-input: #b8d898;
+  --color-primary: #2d5e3a;
+  --color-primary-dark: #1a2e20;
+  --color-text-muted: #7a9e82;
+  --color-text-sub: #5a7a62;
+  --color-tab-inactive: #90b098;
 }
 
 @theme inline {

@@ -1,24 +1,48 @@
 import type { Language } from "@/types";
 
-// ─── 言語メタ情報 ────────────────────────────────────────
+// ─── 言語コード型 ────────────────────────────────────────
+export type LangCode = Language;
+
+// ─── 言語選択UI用配列 ────────────────────────────────────
+export const LANGS: ReadonlyArray<{
+  code: LangCode;
+  flag: string;
+  label: string;
+  sub: string;
+}> = [
+  { code: "ja",    flag: "🇯🇵", label: "日本語のみ",       sub: "翻訳なし" },
+  { code: "en",    flag: "🇺🇸", label: "English",          sub: "英語" },
+  { code: "zh",    flag: "🇨🇳", label: "中文（简体）",     sub: "簡体字" },
+  { code: "zh-tw", flag: "🇹🇼", label: "中文（繁體）",     sub: "繁体字" },
+  { code: "ko",    flag: "🇰🇷", label: "한국어",           sub: "韓国語" },
+  { code: "vi",    flag: "🇻🇳", label: "Tiếng Việt",       sub: "ベトナム語" },
+  { code: "ne",    flag: "🇳🇵", label: "नेपाली",          sub: "ネパール語" },
+  { code: "es",    flag: "🇪🇸", label: "Español",          sub: "スペイン語" },
+  { code: "pt",    flag: "🇧🇷", label: "Português",        sub: "ポルトガル語" },
+  { code: "id",    flag: "🇮🇩", label: "Bahasa Indonesia", sub: "インドネシア語" },
+];
+
+// ─── 言語メタ情報（既存コード互換） ──────────────────────
 export interface LangMeta {
   name: string;
   flag: string;
   currency: { code: string; symbol: string; rate: number };
 }
 
-export const LANG_META: Record<Language, LangMeta> = {
-  ja:  { name: "日本語",      flag: "🇯🇵", currency: { code: "JPY", symbol: "¥",   rate: 1      } },
-  en:  { name: "English",     flag: "🇺🇸", currency: { code: "USD", symbol: "$",   rate: 0.0067 } },
-  zh:  { name: "中文",        flag: "🇨🇳", currency: { code: "CNY", symbol: "¥",   rate: 0.048  } },
-  ko:  { name: "한국어",      flag: "🇰🇷", currency: { code: "KRW", symbol: "₩",   rate: 9.1    } },
-  vi:  { name: "Tiếng Việt",  flag: "🇻🇳", currency: { code: "VND", symbol: "₫",   rate: 164    } },
-  ne:  { name: "नेपाली",     flag: "🇳🇵", currency: { code: "NPR", symbol: "रु",  rate: 0.89   } },
-  pt:  { name: "Português",   flag: "🇧🇷", currency: { code: "BRL", symbol: "R$",  rate: 0.035  } },
-  fil: { name: "Filipino",    flag: "🇵🇭", currency: { code: "PHP", symbol: "₱",   rate: 0.37   } },
+export const LANG_META: Record<LangCode, LangMeta> = {
+  "ja":    { name: "日本語",            flag: "🇯🇵", currency: { code: "JPY", symbol: "¥",   rate: 1      } },
+  "en":    { name: "English",           flag: "🇺🇸", currency: { code: "USD", symbol: "$",   rate: 0.0067 } },
+  "zh":    { name: "中文（简体）",      flag: "🇨🇳", currency: { code: "CNY", symbol: "¥",   rate: 0.048  } },
+  "zh-tw": { name: "中文（繁體）",      flag: "🇹🇼", currency: { code: "TWD", symbol: "NT$",  rate: 0.21   } },
+  "ko":    { name: "한국어",            flag: "🇰🇷", currency: { code: "KRW", symbol: "₩",   rate: 9.1    } },
+  "vi":    { name: "Tiếng Việt",        flag: "🇻🇳", currency: { code: "VND", symbol: "₫",   rate: 164    } },
+  "ne":    { name: "नेपाली",            flag: "🇳🇵", currency: { code: "NPR", symbol: "रु",  rate: 0.89   } },
+  "es":    { name: "Español",           flag: "🇪🇸", currency: { code: "EUR", symbol: "€",   rate: 0.0061 } },
+  "pt":    { name: "Português",         flag: "🇧🇷", currency: { code: "BRL", symbol: "R$",  rate: 0.035  } },
+  "id":    { name: "Bahasa Indonesia",  flag: "🇮🇩", currency: { code: "IDR", symbol: "Rp",  rate: 105    } },
 };
 
-export const LANGUAGES = Object.keys(LANG_META) as Language[];
+export const LANGUAGES = Object.keys(LANG_META) as LangCode[];
 
 // ─── ふりがな / カタカナ / ローマ字 ─────────────────────
 export const PHONETICS: Record<string, { furigana: string; katakana: string; romaji: string }> = {
@@ -37,64 +61,244 @@ export const PHONETICS: Record<string, { furigana: string; katakana: string; rom
 };
 
 // ─── 多言語テキスト型 ────────────────────────────────────
-type ML = Record<Language, string>;
+type ML = Record<LangCode, string>;
 
 // ─── コスト項目ラベル ────────────────────────────────────
 export const COST_LABELS: Record<string, ML> = {
-  rent_first:    { ja: "前家賃",         en: "Advance Rent",             zh: "预付房租",           ko: "선불 임차료",           vi: "Tiền thuê trước",        ne: "अग्रिम भाडा",           pt: "Aluguel antecipado",     fil: "Advance na Upa" },
-  deposit:       { ja: "敷金",           en: "Security Deposit",         zh: "押金",               ko: "보증금",               vi: "Tiền đặt cọc",           ne: "धरौटी",                 pt: "Depósito caução",        fil: "Deposito" },
-  key_money:     { ja: "礼金",           en: "Key Money",                zh: "礼金（谢礼金）",     ko: "사례금",               vi: "Tiền lễ (Rei-kin)",      ne: "सुविधा शुल्क",          pt: "Luva (não reembolsável)",fil: "Key Money" },
-  agency_fee:    { ja: "仲介手数料",     en: "Agency Fee",               zh: "中介费",             ko: "중개 수수료",           vi: "Phí môi giới",           ne: "दलाली शुल्क",           pt: "Taxa de corretagem",     fil: "Bayad sa Ahensya" },
-  guarantee_fee: { ja: "保証会社利用料", en: "Guarantor Fee (Initial)",  zh: "担保公司费（初次）", ko: "보증회사 이용료（초기）", vi: "Phí bảo lãnh (đầu tiên)",ne: "जमानत शुल्क (प्रारम्भिक)", pt: "Taxa de garantia (inicial)", fil: "Guarantor Fee (Unang)" },
-  fire_insurance:{ ja: "火災保険料（2年）",en:"Fire Insurance (2 yrs)", zh: "火灾保险（2年）",   ko: "화재 보험료（2년）",    vi: "Bảo hiểm hỏa hoạn (2 năm)", ne: "आगो बीमा (२ वर्ष)",   pt: "Seguro incêndio (2 anos)", fil: "Fire Insurance (2 taon)" },
-  key_exchange:  { ja: "鍵交換費用",     en: "Key Replacement",          zh: "换锁费用",           ko: "열쇠 교환 비용",         vi: "Phí thay chìa khóa",    ne: "साँचो परिवर्तन शुल्क",  pt: "Troca de chave",         fil: "Pagpapalit ng Susi" },
-  cleaning:      { ja: "室内消毒・除菌", en: "Sanitization",             zh: "室内消毒除菌",       ko: "실내 소독·제균",         vi: "Khử trùng phòng",        ne: "कोठा सफाई",             pt: "Sanitização",            fil: "Sanitasyon" },
+  rent_first: {
+    ja: "前家賃", en: "Advance Rent", zh: "预付房租", "zh-tw": "預付房租",
+    ko: "선불 임차료", vi: "Tiền thuê trước", ne: "अग्रिम भाडा",
+    es: "Renta anticipada", pt: "Aluguel antecipado", id: "Sewa di Muka",
+  },
+  deposit: {
+    ja: "敷金", en: "Security Deposit", zh: "押金", "zh-tw": "押金",
+    ko: "보증금", vi: "Tiền đặt cọc", ne: "धरौटी",
+    es: "Depósito de garantía", pt: "Depósito caução", id: "Uang Jaminan",
+  },
+  key_money: {
+    ja: "礼金", en: "Key Money", zh: "礼金（谢礼金）", "zh-tw": "禮金（謝禮金）",
+    ko: "사례금", vi: "Tiền lễ (Rei-kin)", ne: "सुविधा शुल्क",
+    es: "Llave (Reikin)", pt: "Luva (não reembolsável)", id: "Uang Hadiah (Reikin)",
+  },
+  agency_fee: {
+    ja: "仲介手数料", en: "Agency Fee", zh: "中介费", "zh-tw": "仲介費",
+    ko: "중개 수수료", vi: "Phí môi giới", ne: "दलाली शुल्क",
+    es: "Honorarios de agencia", pt: "Taxa de corretagem", id: "Biaya Agen",
+  },
+  guarantee_fee: {
+    ja: "保証会社利用料", en: "Guarantor Fee (Initial)", zh: "担保公司费（初次）", "zh-tw": "擔保公司費（初次）",
+    ko: "보증회사 이용료（초기）", vi: "Phí bảo lãnh (đầu tiên)", ne: "जमानत शुल्क (प्रारम्भिक)",
+    es: "Tarifa del avalista (inicial)", pt: "Taxa de garantia (inicial)", id: "Biaya Penjamin (Awal)",
+  },
+  fire_insurance: {
+    ja: "火災保険料（2年）", en: "Fire Insurance (2 yrs)", zh: "火灾保险（2年）", "zh-tw": "火災保險（2年）",
+    ko: "화재 보험료（2년）", vi: "Bảo hiểm hỏa hoạn (2 năm)", ne: "आगो बीमा (२ वर्ष)",
+    es: "Seguro contra incendios (2 años)", pt: "Seguro incêndio (2 anos)", id: "Asuransi Kebakaran (2 thn)",
+  },
+  key_exchange: {
+    ja: "鍵交換費用", en: "Key Replacement", zh: "换锁费用", "zh-tw": "換鎖費用",
+    ko: "열쇠 교환 비용", vi: "Phí thay chìa khóa", ne: "साँचो परिवर्तन शुल्क",
+    es: "Cambio de cerradura", pt: "Troca de chave", id: "Biaya Ganti Kunci",
+  },
+  cleaning: {
+    ja: "室内消毒・除菌", en: "Sanitization", zh: "室内消毒除菌", "zh-tw": "室內消毒除菌",
+    ko: "실내 소독·제균", vi: "Khử trùng phòng", ne: "कोठा सफाई",
+    es: "Desinfección", pt: "Sanitização", id: "Sanitasi Ruangan",
+  },
 };
 
 export const MONTHLY_LABELS: Record<string, ML> = {
-  monthly_rent:      { ja: "家賃",       en: "Rent",                  zh: "房租",     ko: "임차료",      vi: "Tiền thuê",              ne: "भाडा",                  pt: "Aluguel",                fil: "Upa" },
-  monthly_mgmt:      { ja: "管理費",     en: "Management Fee",        zh: "管理费",   ko: "관리비",      vi: "Phí quản lý",            ne: "व्यवस्थापन शुल्क",     pt: "Taxa de administração",  fil: "Bayad sa Pamamahala" },
-  monthly_guarantee: { ja: "月額保証料", en: "Monthly Guarantor Fee", zh: "每月担保费",ko: "월별 보증료", vi: "Phí bảo lãnh hàng tháng",ne: "मासिक जमानत शुल्क",    pt: "Taxa mensal de garantia",fil: "Buwanang Guarantor Fee" },
-  monthly_total:     { ja: "月額合計",   en: "Monthly Total",         zh: "每月合计", ko: "월별 합계",   vi: "Tổng hàng tháng",        ne: "मासिक जम्मा",           pt: "Total mensal",           fil: "Kabuuang Buwanang Bayad" },
+  monthly_rent: {
+    ja: "家賃", en: "Rent", zh: "房租", "zh-tw": "房租",
+    ko: "임차료", vi: "Tiền thuê", ne: "भाडा",
+    es: "Renta", pt: "Aluguel", id: "Sewa",
+  },
+  monthly_mgmt: {
+    ja: "管理費", en: "Management Fee", zh: "管理费", "zh-tw": "管理費",
+    ko: "관리비", vi: "Phí quản lý", ne: "व्यवस्थापन शुल्क",
+    es: "Gastos de comunidad", pt: "Taxa de administração", id: "Biaya Pengelolaan",
+  },
+  monthly_guarantee: {
+    ja: "月額保証料", en: "Monthly Guarantor Fee", zh: "每月担保费", "zh-tw": "每月擔保費",
+    ko: "월별 보증료", vi: "Phí bảo lãnh hàng tháng", ne: "मासिक जमानत शुल्क",
+    es: "Cuota mensual de aval", pt: "Taxa mensal de garantia", id: "Biaya Penjamin Bulanan",
+  },
+  monthly_total: {
+    ja: "月額合計", en: "Monthly Total", zh: "每月合计", "zh-tw": "每月合計",
+    ko: "월별 합계", vi: "Tổng hàng tháng", ne: "मासिक जम्मा",
+    es: "Total mensual", pt: "Total mensal", id: "Total Bulanan",
+  },
 };
 
 export const CAT_LABELS: Record<string, ML> = {
-  "家賃関連": { ja: "家賃関連", en: "Rent Related",        zh: "租金相关",  ko: "임차료 관련",   vi: "Liên quan tiền thuê",   ne: "भाडा सम्बन्धित",  pt: "Relacionado ao aluguel", fil: "Kaugnay ng Upa" },
-  "仲介費用": { ja: "仲介費用", en: "Brokerage",            zh: "中介费用",  ko: "중개 비용",     vi: "Chi phí môi giới",      ne: "दलाली खर्च",      pt: "Corretagem",             fil: "Bayad sa Broker" },
-  "保証・保険":{ ja: "保証・保険",en:"Guarantee / Insurance",zh: "担保・保险",ko: "보증・보험",    vi: "Bảo lãnh / Bảo hiểm",  ne: "जमानत / बीमा",    pt: "Garantia / Seguro",      fil: "Garantiya / Insurance" },
-  "入居費用": { ja: "入居費用", en: "Move-in Costs",        zh: "入住费用",  ko: "입주 비용",     vi: "Chi phí dọn vào",       ne: "बसाई खर्च",       pt: "Custos de mudança",      fil: "Gastos sa Paglipat" },
+  "家賃関連": {
+    ja: "家賃関連", en: "Rent Related", zh: "租金相关", "zh-tw": "租金相關",
+    ko: "임차료 관련", vi: "Liên quan tiền thuê", ne: "भाडा सम्बन्धित",
+    es: "Relacionado con la renta", pt: "Relacionado ao aluguel", id: "Terkait Sewa",
+  },
+  "仲介費用": {
+    ja: "仲介費用", en: "Brokerage", zh: "中介费用", "zh-tw": "仲介費用",
+    ko: "중개 비용", vi: "Chi phí môi giới", ne: "दलाली खर्च",
+    es: "Corretaje", pt: "Corretagem", id: "Biaya Perantara",
+  },
+  "保証・保険": {
+    ja: "保証・保険", en: "Guarantee / Insurance", zh: "担保・保险", "zh-tw": "擔保・保險",
+    ko: "보증・보험", vi: "Bảo lãnh / Bảo hiểm", ne: "जमानत / बीमा",
+    es: "Aval / Seguro", pt: "Garantia / Seguro", id: "Penjaminan / Asuransi",
+  },
+  "入居費用": {
+    ja: "入居費用", en: "Move-in Costs", zh: "入住费用", "zh-tw": "入住費用",
+    ko: "입주 비용", vi: "Chi phí dọn vào", ne: "बसाई खर्च",
+    es: "Gastos de entrada", pt: "Custos de mudança", id: "Biaya Masuk",
+  },
 };
 
 export const SECTION: Record<string, ML> = {
-  reportTitle:  { ja: "不動産初期費用計算書", en: "Real Estate Initial Cost Report",   zh: "房地产初期费用计算书",  ko: "부동산 초기 비용 계산서",    vi: "Bảng tính chi phí ban đầu",      ne: "घर भाडा खर्च गणना पत्र",        pt: "Relatório de Custos Iniciais",   fil: "Ulat ng Paunang Gastos" },
-  propertyInfo: { ja: "物件情報",             en: "Property Info",                    zh: "物件信息",             ko: "물건 정보",                  vi: "Thông tin bất động sản",          ne: "सम्पत्ति जानकारी",               pt: "Informações do imóvel",           fil: "Impormasyon ng Ari-arian" },
-  initialCosts: { ja: "初期費用",             en: "Initial Costs",                    zh: "初期费用",             ko: "초기 비용",                  vi: "Chi phí ban đầu",                 ne: "प्रारम्भिक खर्च",                pt: "Custos iniciais",                 fil: "Paunang Gastos" },
-  monthlyCosts: { ja: "毎月の支払い",         en: "Monthly Payments",                 zh: "每月支付",             ko: "월별 납부",                  vi: "Thanh toán hàng tháng",           ne: "मासिक भुक्तानी",                  pt: "Pagamentos mensais",              fil: "Buwanang Bayad" },
-  totalInitial: { ja: "初期費用合計",         en: "Total Initial Cost",               zh: "初期费用合计",         ko: "초기 비용 합계",              vi: "Tổng chi phí ban đầu",            ne: "कुल प्रारम्भिक खर्च",            pt: "Custo inicial total",             fil: "Kabuuang Paunang Gastos" },
-  glossaryTitle:{ ja: "用語解説",             en: "Glossary",                         zh: "术语说明",             ko: "용어 설명",                  vi: "Giải thích thuật ngữ",            ne: "शब्द व्याख्या",                   pt: "Glossário",                       fil: "Talasalitaan" },
-  createdDate:  { ja: "作成日",               en: "Date",                             zh: "制作日期",             ko: "작성일",                     vi: "Ngày tạo",                        ne: "मिति",                            pt: "Data",                            fil: "Petsa" },
-  colItem:      { ja: "項目",                 en: "Item",                             zh: "项目",                 ko: "항목",                       vi: "Mục",                             ne: "विवरण",                           pt: "Item",                            fil: "Aytem" },
-  colAmount:    { ja: "金額（円）",           en: "Amount (JPY)",                     zh: "金额（日元）",         ko: "금액（엔）",                  vi: "Số tiền (JPY)",                   ne: "रकम (येन)",                       pt: "Valor (JPY)",                     fil: "Halaga (JPY)" },
-  colNote:      { ja: "備考",                 en: "Notes",                            zh: "备注",                 ko: "비고",                       vi: "Ghi chú",                         ne: "टिप्पणी",                         pt: "Observações",                     fil: "Tala" },
-  taxIncluded:  { ja: "消費税込",             en: "incl. tax",                        zh: "含消费税",             ko: "소비세 포함",                vi: "Bao gồm thuế",                    ne: "कर सहित",                         pt: "incl. impostos",                  fil: "kasama ang buwis" },
-  rent:         { ja: "家賃",                 en: "Rent",                             zh: "房租",                 ko: "임차료",                     vi: "Tiền thuê",                       ne: "भाडा",                            pt: "Aluguel",                         fil: "Upa" },
-  managementFee:{ ja: "管理費",               en: "Management Fee",                   zh: "管理费",               ko: "관리비",                     vi: "Phí quản lý",                     ne: "व्यवस्थापन शुल्क",               pt: "Taxa de administração",           fil: "Bayad sa Pamamahala" },
-  floorPlan:    { ja: "間取り",               en: "Floor Plan",                       zh: "户型",                 ko: "평면도",                     vi: "Sơ đồ tầng",                      ne: "कोठा विन्यास",                    pt: "Planta",                          fil: "Plano ng Sahig" },
-  area:         { ja: "面積",                 en: "Area",                             zh: "面积",                 ko: "면적",                       vi: "Diện tích",                       ne: "क्षेत्रफल",                       pt: "Área",                            fil: "Sukat" },
-  companyName:  { ja: "会社名",               en: "Company",                          zh: "公司名称",             ko: "회사명",                     vi: "Tên công ty",                     ne: "कम्पनी नाम",                      pt: "Empresa",                         fil: "Pangalan ng Kumpanya" },
-  agentName:    { ja: "担当者",               en: "Agent",                            zh: "负责人",               ko: "담당자",                     vi: "Nhân viên",                       ne: "जिम्मेवार व्यक्ति",               pt: "Responsável",                     fil: "Ahente" },
-  phone:        { ja: "電話",                 en: "Phone",                            zh: "电话",                 ko: "전화",                       vi: "Điện thoại",                      ne: "फोन",                             pt: "Telefone",                        fil: "Telepono" },
-  validUntil:   { ja: "見積もり有効期限",     en: "Quote Valid Until",                zh: "报价有效期至",         ko: "견적 유효 기간",              vi: "Báo giá có hiệu lực đến",         ne: "अनुमान मान्य मिति",               pt: "Validade do orçamento",           fil: "Bisa Hanggang" },
-  scheduleTitle:{ ja: "入居までのスケジュール",en: "Move-in Schedule",                zh: "入住时间表",           ko: "입주 일정",                  vi: "Lịch trình dọn vào",              ne: "सर्ने समय तालिका",                pt: "Cronograma de mudança",           fil: "Iskedyul ng Paglipat" },
-  scheduleStep1:{ ja: "申込",                 en: "Application",                      zh: "申请",                 ko: "신청",                       vi: "Đăng ký",                         ne: "आवेदन",                           pt: "Pedido",                          fil: "Aplikasyon" },
-  scheduleStep2:{ ja: "入居審査",             en: "Screening",                        zh: "审查",                 ko: "심사",                       vi: "Xét duyệt",                       ne: "जाँच",                            pt: "Análise",                         fil: "Pagsusuri" },
-  scheduleStep2sub: { ja: "（1週間程度）",    en: "(~1 week)",                        zh: "（约1周）",            ko: "（1주 정도）",                vi: "(khoảng 1 tuần)",                 ne: "(१ हप्ता जति)",                   pt: "(~1 semana)",                     fil: "(~1 linggo)" },
-  scheduleStep3:{ ja: "契約・費用支払い",     en: "Contract & Payment",               zh: "合同及费用支付",       ko: "계약・비용 납부",             vi: "Ký hợp đồng & Thanh toán",        ne: "सम्झौता र भुक्तानी",              pt: "Contrato & Pagamento",            fil: "Kontrata at Bayad" },
-  scheduleStep4:{ ja: "鍵渡し・入居",         en: "Key Handover",                     zh: "交钥匙・入住",         ko: "열쇠 수령・입주",             vi: "Nhận chìa khóa & Dọn vào",       ne: "साँचो र सर्ने",                   pt: "Entrega & Mudança",               fil: "Susi at Paglipat" },
-  roomNumber:   { ja: "部屋番号",             en: "Room No.",                         zh: "房间号",               ko: "호실",                       vi: "Số phòng",                        ne: "कोठा नम्बर",                      pt: "Nº do apartamento",               fil: "Numero ng Silid" },
-  customerName: { ja: "お客様名",             en: "Customer Name",                    zh: "客户姓名",             ko: "고객명",                     vi: "Tên khách hàng",                  ne: "ग्राहकको नाम",                    pt: "Nome do cliente",                 fil: "Pangalan ng Customer" },
-  customerNat:  { ja: "国籍",                 en: "Nationality",                      zh: "国籍",                 ko: "국적",                       vi: "Quốc tịch",                       ne: "राष्ट्रियता",                     pt: "Nacionalidade",                   fil: "Nasyonalidad" },
-  agentComment: { ja: "担当者コメント",       en: "Agent's Note",                     zh: "负责人备注",           ko: "담당자 코멘트",               vi: "Ghi chú của nhân viên",           ne: "एजेन्टको टिप्पणी",               pt: "Nota do responsável",             fil: "Tala ng Ahente" },
+  reportTitle: {
+    ja: "物件費用見積書", en: "Property Cost Estimate", zh: "房产费用估算书", "zh-tw": "房產費用估算書",
+    ko: "부동산 비용 견적서", vi: "Báo giá chi phí bất động sản", ne: "सम्पत्ति लागत अनुमान",
+    es: "Estimación de costos de la propiedad", pt: "Orçamento de custos do imóvel", id: "Estimasi Biaya Properti",
+  },
+  propertyInfo: {
+    ja: "物件情報", en: "Property Info", zh: "物件信息", "zh-tw": "物件資訊",
+    ko: "물건 정보", vi: "Thông tin bất động sản", ne: "सम्पत्ति जानकारी",
+    es: "Información de la propiedad", pt: "Informações do imóvel", id: "Informasi Properti",
+  },
+  initialCosts: {
+    ja: "初期費用", en: "Initial Costs", zh: "初期费用", "zh-tw": "初期費用",
+    ko: "초기 비용", vi: "Chi phí ban đầu", ne: "प्रारम्भिक खर्च",
+    es: "Gastos iniciales", pt: "Custos iniciais", id: "Biaya Awal",
+  },
+  monthlyCosts: {
+    ja: "月額費用", en: "Monthly Payments", zh: "每月支付", "zh-tw": "每月支付",
+    ko: "월별 납부", vi: "Thanh toán hàng tháng", ne: "मासिक भुक्तानी",
+    es: "Pagos mensuales", pt: "Pagamentos mensais", id: "Pembayaran Bulanan",
+  },
+  totalInitial: {
+    ja: "初期費用合計", en: "Total Initial Cost", zh: "初期费用合计", "zh-tw": "初期費用合計",
+    ko: "초기 비용 합계", vi: "Tổng chi phí ban đầu", ne: "कुल प्रारम्भिक खर्च",
+    es: "Total de gastos iniciales", pt: "Custo inicial total", id: "Total Biaya Awal",
+  },
+  glossaryTitle: {
+    ja: "用語解説", en: "Glossary", zh: "术语说明", "zh-tw": "術語說明",
+    ko: "용어 설명", vi: "Giải thích thuật ngữ", ne: "शब्द व्याख्या",
+    es: "Glosario", pt: "Glossário", id: "Daftar Istilah",
+  },
+  createdDate: {
+    ja: "作成日", en: "Date", zh: "制作日期", "zh-tw": "製作日期",
+    ko: "작성일", vi: "Ngày tạo", ne: "मिति",
+    es: "Fecha", pt: "Data", id: "Tanggal",
+  },
+  colItem: {
+    ja: "項目", en: "Item", zh: "项目", "zh-tw": "項目",
+    ko: "항목", vi: "Mục", ne: "विवरण",
+    es: "Concepto", pt: "Item", id: "Item",
+  },
+  colAmount: {
+    ja: "金額（円）", en: "Amount (JPY)", zh: "金额（日元）", "zh-tw": "金額（日圓）",
+    ko: "금액（엔）", vi: "Số tiền (JPY)", ne: "रकम (येन)",
+    es: "Importe (JPY)", pt: "Valor (JPY)", id: "Jumlah (JPY)",
+  },
+  colNote: {
+    ja: "備考", en: "Notes", zh: "备注", "zh-tw": "備註",
+    ko: "비고", vi: "Ghi chú", ne: "टिप्पणी",
+    es: "Notas", pt: "Observações", id: "Catatan",
+  },
+  taxIncluded: {
+    ja: "消費税込", en: "incl. tax", zh: "含消费税", "zh-tw": "含消費稅",
+    ko: "소비세 포함", vi: "Bao gồm thuế", ne: "कर सहित",
+    es: "IVA incluido", pt: "incl. impostos", id: "termasuk pajak",
+  },
+  rent: {
+    ja: "家賃", en: "Rent", zh: "房租", "zh-tw": "房租",
+    ko: "임차료", vi: "Tiền thuê", ne: "भाडा",
+    es: "Renta", pt: "Aluguel", id: "Sewa",
+  },
+  managementFee: {
+    ja: "管理費", en: "Management Fee", zh: "管理费", "zh-tw": "管理費",
+    ko: "관리비", vi: "Phí quản lý", ne: "व्यवस्थापन शुल्क",
+    es: "Gastos de comunidad", pt: "Taxa de administração", id: "Biaya Pengelolaan",
+  },
+  floorPlan: {
+    ja: "間取り", en: "Floor Plan", zh: "户型", "zh-tw": "戶型",
+    ko: "평면도", vi: "Sơ đồ tầng", ne: "कोठा विन्यास",
+    es: "Distribución", pt: "Planta", id: "Denah",
+  },
+  area: {
+    ja: "面積", en: "Area", zh: "面积", "zh-tw": "面積",
+    ko: "면적", vi: "Diện tích", ne: "क्षेत्रफल",
+    es: "Superficie", pt: "Área", id: "Luas",
+  },
+  companyName: {
+    ja: "会社名", en: "Company", zh: "公司名称", "zh-tw": "公司名稱",
+    ko: "회사명", vi: "Tên công ty", ne: "कम्पनी नाम",
+    es: "Empresa", pt: "Empresa", id: "Perusahaan",
+  },
+  agentName: {
+    ja: "担当者", en: "Agent", zh: "负责人", "zh-tw": "負責人",
+    ko: "담당자", vi: "Nhân viên", ne: "जिम्मेवार व्यक्ति",
+    es: "Agente", pt: "Responsável", id: "Agen",
+  },
+  phone: {
+    ja: "電話", en: "Phone", zh: "电话", "zh-tw": "電話",
+    ko: "전화", vi: "Điện thoại", ne: "फोन",
+    es: "Teléfono", pt: "Telefone", id: "Telepon",
+  },
+  validUntil: {
+    ja: "見積もり有効期限", en: "Quote Valid Until", zh: "报价有效期至", "zh-tw": "報價有效期至",
+    ko: "견적 유효 기간", vi: "Báo giá có hiệu lực đến", ne: "अनुमान मान्य मिति",
+    es: "Validez del presupuesto", pt: "Validade do orçamento", id: "Berlaku Hingga",
+  },
+  scheduleTitle: {
+    ja: "入居までのスケジュール", en: "Move-in Schedule", zh: "入住时间表", "zh-tw": "入住時間表",
+    ko: "입주 일정", vi: "Lịch trình dọn vào", ne: "सर्ने समय तालिका",
+    es: "Cronograma de entrada", pt: "Cronograma de mudança", id: "Jadwal Pindah",
+  },
+  scheduleStep1: {
+    ja: "申込", en: "Application", zh: "申请", "zh-tw": "申請",
+    ko: "신청", vi: "Đăng ký", ne: "आवेदन",
+    es: "Solicitud", pt: "Pedido", id: "Pendaftaran",
+  },
+  scheduleStep2: {
+    ja: "入居審査", en: "Screening", zh: "审查", "zh-tw": "審查",
+    ko: "심사", vi: "Xét duyệt", ne: "जाँच",
+    es: "Evaluación", pt: "Análise", id: "Peninjauan",
+  },
+  scheduleStep2sub: {
+    ja: "（1週間程度）", en: "(~1 week)", zh: "（约1周）", "zh-tw": "（約1週）",
+    ko: "（1주 정도）", vi: "(khoảng 1 tuần)", ne: "(१ हप्ता जति)",
+    es: "(~1 semana)", pt: "(~1 semana)", id: "(~1 minggu)",
+  },
+  scheduleStep3: {
+    ja: "契約・費用支払い", en: "Contract & Payment", zh: "合同及费用支付", "zh-tw": "合約及費用支付",
+    ko: "계약・비용 납부", vi: "Ký hợp đồng & Thanh toán", ne: "सम्झौता र भुक्तानी",
+    es: "Contrato y pago", pt: "Contrato & Pagamento", id: "Kontrak & Pembayaran",
+  },
+  scheduleStep4: {
+    ja: "鍵渡し・入居", en: "Key Handover", zh: "交钥匙・入住", "zh-tw": "交鑰匙・入住",
+    ko: "열쇠 수령・입주", vi: "Nhận chìa khóa & Dọn vào", ne: "साँचो र सर्ने",
+    es: "Entrega de llaves", pt: "Entrega & Mudança", id: "Serah Terima Kunci",
+  },
+  roomNumber: {
+    ja: "部屋番号", en: "Room No.", zh: "房间号", "zh-tw": "房號",
+    ko: "호실", vi: "Số phòng", ne: "कोठा नम्बर",
+    es: "Nº de habitación", pt: "Nº do apartamento", id: "Nomor Kamar",
+  },
+  customerName: {
+    ja: "お客様名", en: "Customer Name", zh: "客户姓名", "zh-tw": "客戶姓名",
+    ko: "고객명", vi: "Tên khách hàng", ne: "ग्राहकको नाम",
+    es: "Nombre del cliente", pt: "Nome do cliente", id: "Nama Pelanggan",
+  },
+  customerNat: {
+    ja: "国籍", en: "Nationality", zh: "国籍", "zh-tw": "國籍",
+    ko: "국적", vi: "Quốc tịch", ne: "राष्ट्रियता",
+    es: "Nacionalidad", pt: "Nacionalidade", id: "Kewarganegaraan",
+  },
+  agentComment: {
+    ja: "担当者コメント", en: "Agent's Note", zh: "负责人备注", "zh-tw": "負責人備註",
+    ko: "담당자 코멘트", vi: "Ghi chú của nhân viên", ne: "एजेन्टको टिप्पणी",
+    es: "Nota del agente", pt: "Nota do responsável", id: "Catatan Agen",
+  },
 };
 
 // ─── 用語解説 ────────────────────────────────────────────
@@ -105,7 +309,7 @@ export interface GlossaryItem {
   explanation: string;
 }
 
-export const GLOSSARY: Record<Language, GlossaryItem[]> = {
+export const GLOSSARY: Record<LangCode, GlossaryItem[]> = {
   ja: [
     { term: "敷金",       furigana: "しききん",                 romaji: "Shiki-kin",       explanation: "入居前に大家さんへ支払う保証金。退去時に修繕費を差し引いて返還される。" },
     { term: "礼金",       furigana: "れいきん",                 romaji: "Rei-kin",         explanation: "大家さんへの「お礼」として支払う金銭。返還されない日本独自の慣習。" },
@@ -126,6 +330,13 @@ export const GLOSSARY: Record<Language, GlossaryItem[]> = {
     { term: "仲介手数料", furigana: "ちゅうかいてすうりょう",   romaji: "Chukai-tesuryo",  explanation: "中介费：支付给房产中介公司。法律规定最高为1个月租金+10%消费税。" },
     { term: "保証会社",   furigana: "ほしょうがいしゃ",         romaji: "Hosho-gaisha",    explanation: "担保公司：没有日本担保人时需要使用。向房东保证您的租金支付。初始费用约0.5个月租金。" },
     { term: "火災保険",   furigana: "かさいほけん",             romaji: "Kasai-hoken",     explanation: "火灾保险：租赁物业必须购买的保险，涵盖火灾、漏水和盗窃。通常为2年合同预付款。" },
+  ],
+  "zh-tw": [
+    { term: "敷金",       furigana: "しききん",                 romaji: "Shiki-kin",       explanation: "押金：搬入前支付給房東的可退還保證金（通常1-2個月租金）。退房時扣除修繕費後返還。" },
+    { term: "礼金",       furigana: "れいきん",                 romaji: "Rei-kin",         explanation: "謝禮金：支付給房東的不可退還感謝金（通常1-2個月租金）。日本獨特習俗，不予退還。" },
+    { term: "仲介手数料", furigana: "ちゅうかいてすうりょう",   romaji: "Chukai-tesuryo",  explanation: "仲介費：支付給房地產仲介公司。法律規定最高為1個月租金+10%消費稅。" },
+    { term: "保証会社",   furigana: "ほしょうがいしゃ",         romaji: "Hosho-gaisha",    explanation: "擔保公司：沒有日本擔保人時需要使用。向房東保證您的租金支付。初始費用約0.5個月租金。" },
+    { term: "火災保険",   furigana: "かさいほけん",             romaji: "Kasai-hoken",     explanation: "火災保險：租賃物業必須購買的保險，涵蓋火災、漏水和盜竊。通常為2年合約預付款。" },
   ],
   ko: [
     { term: "敷金",       furigana: "しききん",                 romaji: "Shiki-kin",       explanation: "보증금: 입주 전 지불하는 환불 가능한 보증금(보통 임차료 1-2개월). 퇴거 시 수리비 공제 후 반환됩니다." },
@@ -148,6 +359,13 @@ export const GLOSSARY: Record<Language, GlossaryItem[]> = {
     { term: "保証会社",   furigana: "ほしょうがいしゃ",         romaji: "Hosho-gaisha",    explanation: "जमानत कम्पनी: जापानी जमानी नभएमा आवश्यक। घरधनीलाई भाडा भुक्तानी ग्यारेन्टी दिन्छ। प्रारम्भिक शुल्क सामान्यतया ०.५ महिना।" },
     { term: "火災保険",   furigana: "かさいほけん",             romaji: "Kasai-hoken",     explanation: "आगो बीमा: भाडाको सम्पत्तिको लागि अनिवार्य बीमा, आगो, पानीको क्षति र चोरी समावेश। सामान्यतया २ वर्षको अग्रिम सम्झौता।" },
   ],
+  es: [
+    { term: "敷金",       furigana: "しききん",                 romaji: "Shiki-kin",       explanation: "Depósito de garantía: Depósito reembolsable pagado antes de la mudanza (normalmente 1-2 meses de renta). Devuelto al salir, descontando reparaciones." },
+    { term: "礼金",       furigana: "れいきん",                 romaji: "Rei-kin",         explanation: "Llave (Reikin): Pago de 'agradecimiento' no reembolsable al propietario (normalmente 1-2 meses). Costumbre japonesa única — NO se devuelve." },
+    { term: "仲介手数料", furigana: "ちゅうかいてすうりょう",   romaji: "Chukai-tesuryo",  explanation: "Honorarios de agencia: Se pagan a la inmobiliaria. Por ley, el máximo es 1 mes de renta + 10% de impuesto al consumo." },
+    { term: "保証会社",   furigana: "ほしょうがいしゃ",         romaji: "Hosho-gaisha",    explanation: "Empresa avalista: Necesaria si no tiene un avalista japonés. Garantiza el pago de la renta al propietario. Tarifa inicial habitual 0,5 meses." },
+    { term: "火災保険",   furigana: "かさいほけん",             romaji: "Kasai-hoken",     explanation: "Seguro contra incendios: Obligatorio para alquileres, cubre incendios, daños por agua y robo. Contrato típico de 2 años pagado por adelantado." },
+  ],
   pt: [
     { term: "敷金",       furigana: "しききん",                 romaji: "Shiki-kin",       explanation: "Depósito caução: Depósito reembolsável pago antes da mudança (geralmente 1-2 meses de aluguel). Devolvido na saída, descontando reparos." },
     { term: "礼金",       furigana: "れいきん",                 romaji: "Rei-kin",         explanation: "Luva: Pagamento não reembolsável de 'gratidão' ao proprietário (geralmente 1-2 meses). Costume único do Japão — não será devolvido." },
@@ -155,19 +373,424 @@ export const GLOSSARY: Record<Language, GlossaryItem[]> = {
     { term: "保証会社",   furigana: "ほしょうがいしゃ",         romaji: "Hosho-gaisha",    explanation: "Empresa garantidora: Necessária sem fiador japonês. Garante o pagamento do aluguel ao proprietário. Taxa inicial geralmente 0,5 meses." },
     { term: "火災保険",   furigana: "かさいほけん",             romaji: "Kasai-hoken",     explanation: "Seguro contra incêndio: Obrigatório para o imóvel alugado, cobrindo incêndio, danos por água e roubo. Contrato de 2 anos pago antecipadamente." },
   ],
-  fil: [
-    { term: "敷金",       furigana: "しききん",                 romaji: "Shiki-kin",       explanation: "Deposito: Deposito na ibabalik na binabayad bago lumipat (karaniwang 1-2 buwang upa). Ibabalik kapag lumipat na, ibabawas ang gastos sa pagkukumpuni." },
-    { term: "礼金",       furigana: "れいきん",                 romaji: "Rei-kin",         explanation: "Key Money: Hindi maibabalik na bayad na 'pasasalamat' sa may-ari (karaniwang 1-2 buwang upa). Kaugalian sa Japan — hindi ibabalik." },
-    { term: "仲介手数料", furigana: "ちゅうかいてすうりょう",   romaji: "Chukai-tesuryo",  explanation: "Bayad sa Ahensya: Binabayad sa real estate company. Sa batas, maximum ay 1 buwang upa + 10% consumption tax." },
-    { term: "保証会社",   furigana: "ほしょうがいしゃ",         romaji: "Hosho-gaisha",    explanation: "Guarantor Company: Kailangan kung walang Japanese guarantor. Ginagarantiyahan ang bayad ng upa sa may-ari. Unang bayad karaniwang 0.5 buwang upa." },
-    { term: "火災保険",   furigana: "かさいほけん",             romaji: "Kasai-hoken",     explanation: "Fire Insurance: Sapilitan na insurance para sa inupahang ari-arian, sumasaklaw sa sunog, water damage, at pagnanakaw. 2-taong kontrata na bayad nang maaga." },
+  id: [
+    { term: "敷金",       furigana: "しききん",                 romaji: "Shiki-kin",       explanation: "Uang Jaminan: Deposit yang dapat dikembalikan, dibayar sebelum pindah (biasanya 1-2 bulan sewa). Dikembalikan saat keluar, dipotong biaya perbaikan." },
+    { term: "礼金",       furigana: "れいきん",                 romaji: "Rei-kin",         explanation: "Uang Hadiah: Pembayaran 'terima kasih' yang tidak dapat dikembalikan kepada pemilik (biasanya 1-2 bulan). Kebiasaan khas Jepang — TIDAK dikembalikan." },
+    { term: "仲介手数料", furigana: "ちゅうかいてすうりょう",   romaji: "Chukai-tesuryo",  explanation: "Biaya Agen: Dibayarkan ke agen properti. Menurut hukum, maksimum 1 bulan sewa + 10% pajak konsumsi." },
+    { term: "保証会社",   furigana: "ほしょうがいしゃ",         romaji: "Hosho-gaisha",    explanation: "Perusahaan Penjamin: Diperlukan jika tidak ada penjamin Jepang. Menjamin pembayaran sewa kepada pemilik. Biaya awal biasanya 0,5 bulan." },
+    { term: "火災保険",   furigana: "かさいほけん",             romaji: "Kasai-hoken",     explanation: "Asuransi Kebakaran: Wajib untuk properti sewa, mencakup kebakaran, kerusakan air, dan pencurian. Kontrak biasanya 2 tahun dibayar di muka." },
   ],
 };
 
-// ─── ヘルパー関数 ────────────────────────────────────────
+// ─── 項目ID → bilingualキー の対応表 ─────────────────────
+export const COST_BILINGUAL_KEY: Record<string, string> = {
+  rent_first:     "maeyachin",
+  deposit:        "shikikin",
+  key_money:      "reikin",
+  agency_fee:     "agencyFee",
+  guarantee_fee:  "guarantee",
+  fire_insurance: "fire",
+  key_exchange:   "key",
+  cleaning:       "clean",
+};
+
+export const MONTHLY_BILINGUAL_KEY: Record<string, string> = {
+  monthly_rent:      "mRent",
+  monthly_mgmt:      "mMgmt",
+  monthly_guarantee: "mGuar",
+  monthly_total:     "monthlyTotal",
+};
+
+export const CAT_BILINGUAL_KEY: Record<string, string> = {
+  "家賃関連":   "catRent",
+  "仲介費用":   "catAgency",
+  "保証・保険": "catGuarantee",
+  "入居費用":   "catMove",
+};
+
+// ─── 翻訳マップ T（bilingual用） ─────────────────────────
+// 既存キー（reportTitle, propertyInfo, deposit など）と
+// 新キー（shikikin, reikin, totalInit, customerDisclaimer など）を
+// 言語ごとにフラットに保持する。bilingual(jaText, key, lang) からの参照に使う。
+export const T: Record<LangCode, Record<string, string>> = {
+  ja: {},
+
+  en: {
+    // 新キー（短縮名）
+    shikikin: "Security Deposit",
+    reikin: "Key Money",
+    maeyachin: "Advance Rent",
+    agencyFee: "Agency Fee",
+    guarantee: "Guarantor Fee",
+    fire: "Fire Insurance",
+    key: "Key Replacement",
+    clean: "Sanitization",
+    catRent: "Rent Related",
+    catAgency: "Brokerage",
+    catGuarantee: "Guarantee / Insurance",
+    catMove: "Move-in Costs",
+    totalInit: "Total Initial Cost",
+    monthly: "Monthly Payments",
+    mRent: "Rent",
+    mMgmt: "Management Fee",
+    mGuar: "Monthly Guarantor Fee",
+    monthlyTotal: "Monthly Total",
+    initial: "Initial Costs",
+    docTitle: "Property Cost Estimate",
+    disclaimer: "* Figures are auto-extracted by AI from source materials. Please verify against the original listing before contracting.",
+    customerDisclaimer: "※ This is an estimate only. Actual costs may vary. Please confirm with your agent.",
+    // 既存キー（SECTIONなどから引き継いだもの）
+    reportTitle: "Property Cost Estimate",
+    propertyInfo: "Property Info",
+    monthlyCosts: "Monthly Payments",
+    glossaryTitle: "Glossary",
+    rent: "Rent",
+    managementFee: "Management Fee",
+    floorPlan: "Floor Plan",
+    area: "Area",
+    companyName: "Company",
+    agentName: "Agent",
+    phone: "Phone",
+    validUntil: "Quote Valid Until",
+    roomNumber: "Room No.",
+    customerName: "Customer Name",
+    agentComment: "Agent's Note",
+  },
+
+  zh: {
+    shikikin: "押金",
+    reikin: "礼金",
+    maeyachin: "预付房租",
+    agencyFee: "中介费",
+    guarantee: "担保公司费",
+    fire: "火灾保险",
+    key: "换锁费用",
+    clean: "室内消毒",
+    catRent: "租金相关",
+    catAgency: "中介费用",
+    catGuarantee: "担保・保险",
+    catMove: "入住费用",
+    totalInit: "初期费用合计",
+    monthly: "每月支付",
+    mRent: "房租",
+    mMgmt: "管理费",
+    mGuar: "每月担保费",
+    monthlyTotal: "每月合计",
+    initial: "初期费用",
+    docTitle: "房产费用估算书",
+    disclaimer: "* 本估算系AI自动提取，签约前请与原始资料核对。",
+    customerDisclaimer: "※ 本报价为概算，实际费用可能有所变动，请向负责人确认。",
+    reportTitle: "房产费用估算书",
+    propertyInfo: "物件信息",
+    monthlyCosts: "每月支付",
+    glossaryTitle: "术语说明",
+    rent: "房租",
+    managementFee: "管理费",
+    floorPlan: "户型",
+    area: "面积",
+    companyName: "公司名称",
+    agentName: "负责人",
+    phone: "电话",
+    validUntil: "报价有效期至",
+    roomNumber: "房间号",
+    customerName: "客户姓名",
+    agentComment: "负责人备注",
+  },
+
+  "zh-tw": {
+    shikikin: "押金",
+    reikin: "禮金",
+    maeyachin: "預付房租",
+    agencyFee: "仲介費",
+    guarantee: "擔保公司費",
+    fire: "火災保險",
+    key: "換鎖費用",
+    clean: "室內消毒",
+    catRent: "租金相關",
+    catAgency: "仲介費用",
+    catGuarantee: "擔保・保險",
+    catMove: "入住費用",
+    totalInit: "初期費用合計",
+    monthly: "每月支付",
+    mRent: "房租",
+    mMgmt: "管理費",
+    mGuar: "每月擔保費",
+    monthlyTotal: "每月合計",
+    initial: "初期費用",
+    docTitle: "房產費用估算書",
+    disclaimer: "* 本估算為AI自動提取，簽約前請與原始資料核對。",
+    customerDisclaimer: "※ 本報價為概算，實際費用可能有所變動，請向負責人確認。",
+    reportTitle: "房產費用估算書",
+    propertyInfo: "物件資訊",
+    monthlyCosts: "每月支付",
+    glossaryTitle: "術語說明",
+    rent: "房租",
+    managementFee: "管理費",
+    floorPlan: "戶型",
+    area: "面積",
+    companyName: "公司名稱",
+    agentName: "負責人",
+    phone: "電話",
+    validUntil: "報價有效期至",
+    roomNumber: "房號",
+    customerName: "客戶姓名",
+    agentComment: "負責人備註",
+  },
+
+  ko: {
+    shikikin: "보증금",
+    reikin: "사례금",
+    maeyachin: "선불 임차료",
+    agencyFee: "중개 수수료",
+    guarantee: "보증회사 이용료",
+    fire: "화재 보험료",
+    key: "열쇠 교환 비용",
+    clean: "실내 소독",
+    catRent: "임차료 관련",
+    catAgency: "중개 비용",
+    catGuarantee: "보증・보험",
+    catMove: "입주 비용",
+    totalInit: "초기 비용 합계",
+    monthly: "월별 납부",
+    mRent: "임차료",
+    mMgmt: "관리비",
+    mGuar: "월별 보증료",
+    monthlyTotal: "월별 합계",
+    initial: "초기 비용",
+    docTitle: "부동산 비용 견적서",
+    disclaimer: "* 본 견적은 AI가 자동 추출한 정보입니다. 계약 전 원본 자료와 확인해 주세요.",
+    customerDisclaimer: "※ 본 견적은 개산입니다. 실제 비용은 변동될 수 있으니 담당자에게 확인해 주세요.",
+    reportTitle: "부동산 비용 견적서",
+    propertyInfo: "물건 정보",
+    monthlyCosts: "월별 납부",
+    glossaryTitle: "용어 설명",
+    rent: "임차료",
+    managementFee: "관리비",
+    floorPlan: "평면도",
+    area: "면적",
+    companyName: "회사명",
+    agentName: "담당자",
+    phone: "전화",
+    validUntil: "견적 유효 기간",
+    roomNumber: "호실",
+    customerName: "고객명",
+    agentComment: "담당자 코멘트",
+  },
+
+  vi: {
+    shikikin: "Tiền đặt cọc",
+    reikin: "Tiền lễ",
+    maeyachin: "Tiền thuê trước",
+    agencyFee: "Phí môi giới",
+    guarantee: "Phí bảo lãnh",
+    fire: "Bảo hiểm hỏa hoạn",
+    key: "Phí thay chìa khóa",
+    clean: "Khử trùng phòng",
+    catRent: "Liên quan tiền thuê",
+    catAgency: "Chi phí môi giới",
+    catGuarantee: "Bảo lãnh / Bảo hiểm",
+    catMove: "Chi phí dọn vào",
+    totalInit: "Tổng chi phí ban đầu",
+    monthly: "Thanh toán hàng tháng",
+    mRent: "Tiền thuê",
+    mMgmt: "Phí quản lý",
+    mGuar: "Phí bảo lãnh hàng tháng",
+    monthlyTotal: "Tổng hàng tháng",
+    initial: "Chi phí ban đầu",
+    docTitle: "Báo giá chi phí bất động sản",
+    disclaimer: "* Số liệu được AI trích xuất tự động. Vui lòng đối chiếu với tài liệu gốc trước khi ký hợp đồng.",
+    customerDisclaimer: "※ Đây là ước tính. Chi phí thực tế có thể thay đổi. Vui lòng xác nhận với đại lý.",
+    reportTitle: "Báo giá chi phí bất động sản",
+    propertyInfo: "Thông tin bất động sản",
+    monthlyCosts: "Thanh toán hàng tháng",
+    glossaryTitle: "Giải thích thuật ngữ",
+    rent: "Tiền thuê",
+    managementFee: "Phí quản lý",
+    floorPlan: "Sơ đồ tầng",
+    area: "Diện tích",
+    companyName: "Tên công ty",
+    agentName: "Nhân viên",
+    phone: "Điện thoại",
+    validUntil: "Báo giá có hiệu lực đến",
+    roomNumber: "Số phòng",
+    customerName: "Tên khách hàng",
+    agentComment: "Ghi chú của nhân viên",
+  },
+
+  ne: {
+    shikikin: "धरौटी",
+    reikin: "सुविधा शुल्क",
+    maeyachin: "अग्रिम भाडा",
+    agencyFee: "दलाली शुल्क",
+    guarantee: "जमानत शुल्क",
+    fire: "आगो बीमा",
+    key: "साँचो परिवर्तन शुल्क",
+    clean: "कोठा सफाई",
+    catRent: "भाडा सम्बन्धित",
+    catAgency: "दलाली खर्च",
+    catGuarantee: "जमानत / बीमा",
+    catMove: "बसाई खर्च",
+    totalInit: "कुल प्रारम्भिक खर्च",
+    monthly: "मासिक भुक्तानी",
+    mRent: "भाडा",
+    mMgmt: "व्यवस्थापन शुल्क",
+    mGuar: "मासिक जमानत शुल्क",
+    monthlyTotal: "मासिक जम्मा",
+    initial: "प्रारम्भिक खर्च",
+    docTitle: "सम्पत्ति लागत अनुमान",
+    disclaimer: "* यो AI द्वारा स्वचालित निकालिएको हो। सम्झौताभन्दा पहिले मूल कागजातसँग मिलाउनुहोस्।",
+    customerDisclaimer: "※ यो अनुमानित रकम हो। वास्तविक खर्च फरक हुन सक्छ।",
+    reportTitle: "सम्पत्ति लागत अनुमान",
+    propertyInfo: "सम्पत्ति जानकारी",
+    monthlyCosts: "मासिक भुक्तानी",
+    glossaryTitle: "शब्द व्याख्या",
+    rent: "भाडा",
+    managementFee: "व्यवस्थापन शुल्क",
+    floorPlan: "कोठा विन्यास",
+    area: "क्षेत्रफल",
+    companyName: "कम्पनी नाम",
+    agentName: "जिम्मेवार व्यक्ति",
+    phone: "फोन",
+    validUntil: "अनुमान मान्य मिति",
+    roomNumber: "कोठा नम्बर",
+    customerName: "ग्राहकको नाम",
+    agentComment: "एजेन्टको टिप्पणी",
+  },
+
+  es: {
+    shikikin: "Depósito de garantía",
+    reikin: "Llave (Reikin)",
+    maeyachin: "Renta anticipada",
+    agencyFee: "Honorarios de agencia",
+    guarantee: "Tarifa del avalista",
+    fire: "Seguro contra incendios",
+    key: "Cambio de cerradura",
+    clean: "Desinfección",
+    catRent: "Relacionado con la renta",
+    catAgency: "Corretaje",
+    catGuarantee: "Aval / Seguro",
+    catMove: "Gastos de entrada",
+    totalInit: "Total de gastos iniciales",
+    monthly: "Pagos mensuales",
+    mRent: "Renta",
+    mMgmt: "Gastos de comunidad",
+    mGuar: "Cuota mensual de aval",
+    monthlyTotal: "Total mensual",
+    initial: "Gastos iniciales",
+    docTitle: "Estimación de costos de la propiedad",
+    disclaimer: "* Las cifras son extraídas automáticamente por IA. Verifique con los documentos originales antes de contratar.",
+    customerDisclaimer: "※ Esta es una estimación aproximada. Los costos reales pueden variar.",
+    reportTitle: "Estimación de costos de la propiedad",
+    propertyInfo: "Información de la propiedad",
+    monthlyCosts: "Pagos mensuales",
+    glossaryTitle: "Glosario",
+    rent: "Renta",
+    managementFee: "Gastos de comunidad",
+    floorPlan: "Distribución",
+    area: "Superficie",
+    companyName: "Empresa",
+    agentName: "Agente",
+    phone: "Teléfono",
+    validUntil: "Validez del presupuesto",
+    roomNumber: "Nº de habitación",
+    customerName: "Nombre del cliente",
+    agentComment: "Nota del agente",
+  },
+
+  pt: {
+    shikikin: "Depósito caução",
+    reikin: "Luva",
+    maeyachin: "Aluguel antecipado",
+    agencyFee: "Taxa de corretagem",
+    guarantee: "Taxa de garantia",
+    fire: "Seguro contra incêndio",
+    key: "Troca de chave",
+    clean: "Sanitização",
+    catRent: "Relacionado ao aluguel",
+    catAgency: "Corretagem",
+    catGuarantee: "Garantia / Seguro",
+    catMove: "Custos de mudança",
+    totalInit: "Custo inicial total",
+    monthly: "Pagamentos mensais",
+    mRent: "Aluguel",
+    mMgmt: "Taxa de administração",
+    mGuar: "Taxa mensal de garantia",
+    monthlyTotal: "Total mensal",
+    initial: "Custos iniciais",
+    docTitle: "Orçamento de custos do imóvel",
+    disclaimer: "* Os valores são extraídos automaticamente por IA. Verifique com os documentos originais antes de contratar.",
+    customerDisclaimer: "※ Esta é uma estimativa. Os custos reais podem variar.",
+    reportTitle: "Orçamento de custos do imóvel",
+    propertyInfo: "Informações do imóvel",
+    monthlyCosts: "Pagamentos mensais",
+    glossaryTitle: "Glossário",
+    rent: "Aluguel",
+    managementFee: "Taxa de administração",
+    floorPlan: "Planta",
+    area: "Área",
+    companyName: "Empresa",
+    agentName: "Responsável",
+    phone: "Telefone",
+    validUntil: "Validade do orçamento",
+    roomNumber: "Nº do apartamento",
+    customerName: "Nome do cliente",
+    agentComment: "Nota do responsável",
+  },
+
+  id: {
+    shikikin: "Uang Jaminan",
+    reikin: "Uang Hadiah",
+    maeyachin: "Sewa di Muka",
+    agencyFee: "Biaya Agen",
+    guarantee: "Biaya Penjamin",
+    fire: "Asuransi Kebakaran",
+    key: "Biaya Ganti Kunci",
+    clean: "Sanitasi Ruangan",
+    catRent: "Terkait Sewa",
+    catAgency: "Biaya Perantara",
+    catGuarantee: "Penjaminan / Asuransi",
+    catMove: "Biaya Masuk",
+    totalInit: "Total Biaya Awal",
+    monthly: "Pembayaran Bulanan",
+    mRent: "Sewa",
+    mMgmt: "Biaya Pengelolaan",
+    mGuar: "Biaya Penjamin Bulanan",
+    monthlyTotal: "Total Bulanan",
+    initial: "Biaya Awal",
+    docTitle: "Estimasi Biaya Properti",
+    disclaimer: "* Angka diekstrak secara otomatis oleh AI. Harap verifikasi dengan dokumen asli sebelum kontrak.",
+    customerDisclaimer: "※ Ini adalah perkiraan. Biaya aktual dapat berubah.",
+    reportTitle: "Estimasi Biaya Properti",
+    propertyInfo: "Informasi Properti",
+    monthlyCosts: "Pembayaran Bulanan",
+    glossaryTitle: "Daftar Istilah",
+    rent: "Sewa",
+    managementFee: "Biaya Pengelolaan",
+    floorPlan: "Denah",
+    area: "Luas",
+    companyName: "Perusahaan",
+    agentName: "Agen",
+    phone: "Telepon",
+    validUntil: "Berlaku Hingga",
+    roomNumber: "Nomor Kamar",
+    customerName: "Nama Pelanggan",
+    agentComment: "Catatan Agen",
+  },
+};
+
+// ─── bilingual ユーティリティ ────────────────────────────
+// jaText を渡すと、選択言語でその訳語が T に存在する場合に
+// 「日本語（訳語）」の併記文字列を返す。lang が ja の場合は素通し。
+export const bilingual = (jaText: string, key: string, lang: LangCode): string => {
+  if (lang === "ja") return jaText;
+  const tr = T[lang]?.[key];
+  return tr ? `${jaText}（${tr}）` : jaText;
+};
+
+// ─── ヘルパー関数（既存コード互換） ──────────────────────
 
 /** 金額をJPY + 現地通貨換算で返す */
-export function formatAmount(amount: number, lang: Language): { jpy: string; local: string | null } {
+export function formatAmount(amount: number, lang: LangCode): { jpy: string; local: string | null } {
   const meta = LANG_META[lang];
   const jpy = `¥${amount.toLocaleString("ja-JP")}`;
   if (lang === "ja") return { jpy, local: null };
@@ -179,7 +802,7 @@ export function formatAmount(amount: number, lang: Language): { jpy: string; loc
 }
 
 /** セクションラベル: 日本語 / 訳語（ja のみ日本語のみ） */
-export function sectionLabel(key: string, lang: Language): string {
+export function sectionLabel(key: string, lang: LangCode): string {
   const s = SECTION[key];
   if (!s) return key;
   if (lang === "ja") return s.ja;

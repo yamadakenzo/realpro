@@ -11,9 +11,9 @@ interface Props {
 }
 
 const FIELDS: { key: keyof AgentInfo; label: string; type: string; placeholder: string }[] = [
-  { key: "companyName", label: "会社名",   type: "text", placeholder: "株式会社〇〇不動産" },
-  { key: "agentName",   label: "担当者名", type: "text", placeholder: "山田 太郎" },
-  { key: "phone",       label: "電話番号", type: "tel",  placeholder: "052-000-0000" },
+  { key: "companyName", label: "会社名",   type: "text", placeholder: "例）○○不動産" },
+  { key: "agentName",   label: "担当者名", type: "text", placeholder: "例）山田" },
+  { key: "phone",       label: "電話番号", type: "tel",  placeholder: "例）052-000-0000" },
 ];
 
 export default function AgentInfoForm({ info, onChange, logoDataUrl, onLogoChange }: Props) {
@@ -101,7 +101,7 @@ export default function AgentInfoForm({ info, onChange, logoDataUrl, onLogoChang
                 value={info[key]}
                 onChange={set(key)}
                 placeholder={placeholder}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent placeholder:text-slate-300"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent placeholder:text-[#a8c4ae]"
               />
             </div>
           ))}

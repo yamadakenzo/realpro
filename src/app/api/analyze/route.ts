@@ -154,19 +154,13 @@ function calculateInitialCosts(prop: ExtractedProperty): CostItem[] {
   ];
 }
 
-// Stage 2-b: 毎月の支払いを計算
+// Stage 2-b: 月額費用を計算（家賃・管理費・月額保証料は常に3行返す。値がなければ0）
 function calculateMonthlyCosts(prop: ExtractedProperty): MonthlyItem[] {
   const items: MonthlyItem[] = [
-    { id: "monthly_rent", label: "家賃", amount: prop.rent, editable: true },
+    { id: "monthly_rent",      label: "家賃",       amount: prop.rent,                editable: true },
+    { id: "monthly_mgmt",      label: "管理費",     amount: prop.managementFee,       editable: true },
+    { id: "monthly_guarantee", label: "月額保証料", amount: prop.guaranteeFeeMonthly, editable: true },
   ];
-
-  if (prop.managementFee > 0) {
-    items.push({ id: "monthly_mgmt", label: "管理費", amount: prop.managementFee, editable: true });
-  }
-
-  if (prop.guaranteeFeeMonthly > 0) {
-    items.push({ id: "monthly_guarantee", label: "月額保証料", amount: prop.guaranteeFeeMonthly, editable: true });
-  }
 
   const total = items.reduce((s, i) => s + i.amount, 0);
   items.push({ id: "monthly_total", label: "月額合計", amount: total, editable: false });

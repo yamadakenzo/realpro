@@ -1,18 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LANG_META, LANGUAGES } from "@/lib/translations";
 import type { Language } from "@/types";
 
+type PdfMode = "preview" | "line-pdf" | "line-text";
+
 interface Props {
   isOpen: boolean;
+  initialLang?: Language;
+  pdfMode?: PdfMode;
   onClose: () => void;
   onConfirm: (lang: Language, glossary: boolean) => void;
+  onLineShare?: (lang: Language, glossary: boolean) => void;
 }
 
-export default function PdfModal({ isOpen, onClose, onConfirm }: Props) {
-  const [lang, setLang] = useState<Language>("ja");
+export default function PdfModal({ isOpen, initialLang, pdfMode = "preview", onClose, onConfirm, onLineShare }: Props) {
+  const [lang, setLang] = useState<Language>(initialLang ?? "ja");
   const [glossary, setGlossary] = useState(true);
+
+  useEffect(() => {
+    if (isOpen && initialLang) setLang(initialLang);
+  }, [isOpen, initialLang]);
 
   if (!isOpen) return null;
 
@@ -108,22 +117,36 @@ export default function PdfModal({ isOpen, onClose, onConfirm }: Props) {
         </div>
 
         {/* フッター */}
-        <div className="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end">
+        <div className="px-6 py-4 border-t border-slate-100 flex flex-wrap gap-2 justify-end">
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition-colors"
           >
             キャンセル
           </button>
+          {pdfMode === "line-pdf" && onLineShare && (
+            <button
+              onClick={() => onLineShare(lang, glossary)}
+              className="px-5 py-2 rounded-xl text-sm font-semibold bg-[#06C755] text-white hover:opacity-90 transition-opacity flex items-center gap-2"
+            >
+              <span className="w-5 h-5 bg-white rounded-[5px] flex items-center justify-center shrink-0">
+                <svg viewBox="0 0 40 40" fill="none" className="w-[13px] h-[13px]">
+                  <path d="M20 4C11.163 4 4 10.478 4 18.444c0 5.152 3.09 9.677 7.752 12.374L10 36l5.8-2.895C17.148 33.35 18.554 33.6 20 33.6c8.837 0 16-6.478 16-14.156C36 10.478 28.837 4 20 4z" fill="#06C755" />
+                  <path d="M28 21.5c0 .28-.23.5-.5.5H12.5c-.28 0-.5-.22-.5-.5v-1c0-.28.22-.5.5-.5h15c.27 0 .5.22.5.5v1zm-1-4c0 .28-.23.5-.5.5h-13c-.28 0-.5-.22-.5-.5v-1c0-.28.22-.5.5-.5h13c.27 0 .5.22.5.5v1z" fill="white" />
+                </svg>
+              </span>
+              LINEで送る
+            </button>
+          )}
           <button
             onClick={() => onConfirm(lang, glossary)}
-            className="px-5 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-2"
+            className="px-5 py-2 rounded-xl text-sm font-semibold bg-[#2d5e3a] text-white hover:bg-[#1a2e20] transition-colors flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0119 9.414V19a2 2 0 01-2 2z" />
+                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
             </svg>
-            PDF 出力
+            印刷する
           </button>
         </div>
       </div>

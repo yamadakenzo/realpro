@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "不動産初期費用計算アプリ",
-  description: "RealNetPro のスクリーンショットから初期費用を自動算出",
+  title: "物件費用見積書",
+  description: "AI自動読み取り・多言語対応",
 };
 
 export default function RootLayout({

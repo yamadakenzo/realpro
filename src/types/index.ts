@@ -1,4 +1,4 @@
-export type Language = "ja" | "en" | "zh" | "ko" | "vi" | "ne" | "pt" | "fil";
+export type Language = "ja" | "en" | "zh" | "zh-tw" | "ko" | "vi" | "ne" | "es" | "pt" | "id";
 
 export interface ExtractedProperty {
   propertyName: string;

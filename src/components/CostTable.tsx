@@ -2,7 +2,8 @@
 
 import {
   COST_LABELS, MONTHLY_LABELS, CAT_LABELS, SECTION,
-  PHONETICS, GLOSSARY, formatAmount, sectionLabel,
+  PHONETICS, GLOSSARY, T, bilingual, formatAmount, sectionLabel,
+  COST_BILINGUAL_KEY, MONTHLY_BILINGUAL_KEY, CAT_BILINGUAL_KEY,
 } from "@/lib/translations";
 import type { AgentInfo, CostItem, ExtractedProperty, Language, MonthlyItem } from "@/types";
 
@@ -16,6 +17,7 @@ interface Props {
   customerName: string;
   pdfLang: Language;
   showGlossary: boolean;
+  photoUrls: string[];
   onCostsChange: (costs: CostItem[]) => void;
   onMonthlyCostsChange: (costs: MonthlyItem[]) => void;
   onRoomNumberChange: (v: string) => void;
@@ -23,39 +25,37 @@ interface Props {
 
 const fmt = (n: number) => `¥${n.toLocaleString("ja-JP")}`;
 
-// 画面 → 日本語ラベル、印刷 → ふりがな・カタカナ・ローマ字・訳語
+// 画面 → 日本語ラベル、印刷 → 「日本語（翻訳）」＋（非ja時のみ）フリガナ
 function ItemLabel({
   id,
   fallback,
   labelMap,
+  bilingualKey,
   pdfLang,
 }: {
   id: string;
   fallback: string;
   labelMap: Record<string, Record<Language, string>>;
+  bilingualKey?: string;
   pdfLang: Language;
 }) {
   const ph = PHONETICS[id];
-  const native = labelMap[id]?.[pdfLang] ?? fallback;
+  const jaLabel = labelMap[id]?.ja ?? fallback;
+  const showFurigana = pdfLang !== "ja";
+  const labelText = bilingualKey ? bilingual(jaLabel, bilingualKey, pdfLang) : jaLabel;
 
   return (
     <>
       {/* 画面：日本語 */}
-      <span className="print:hidden">{labelMap[id]?.ja ?? fallback}</span>
+      <span className="print:hidden">{jaLabel}</span>
 
-      {/* 印刷：多言語 */}
+      {/* 印刷：「日本語（翻訳）」＋ （非ja時のみ）読み仮名 */}
       <span className="hidden print:inline leading-snug">
-        <span className="font-medium">{labelMap[id]?.ja ?? fallback}</span>
-        {ph && pdfLang !== "ja" && (
+        <span className="font-medium">{labelText}</span>
+        {ph && showFurigana && (
           <span className="text-slate-500 text-xs">
-            {" "}（{ph.furigana} / {ph.katakana} / {ph.romaji}）
+            {" "}（{ph.furigana} / {ph.romaji}）
           </span>
-        )}
-        {ph && pdfLang === "ja" && (
-          <span className="text-slate-500 text-xs"> （{ph.furigana}）</span>
-        )}
-        {pdfLang !== "ja" && (
-          <span className="block text-xs text-slate-600 mt-0.5">{native}</span>
         )}
       </span>
     </>
@@ -81,12 +81,34 @@ function AmountDisplay({ amount, pdfLang }: { amount: number; pdfLang: Language 
 export default function CostTable({
   extracted, costs, monthlyCosts, agentInfo, logoDataUrl, validUntil,
   customerName,
-  pdfLang, showGlossary,
+  pdfLang, showGlossary, photoUrls,
   onCostsChange, onMonthlyCostsChange, onRoomNumberChange,
 }: Props) {
   const updateCost = (id: string, value: string) => {
     const amount = Math.max(0, parseInt(value, 10) || 0);
     onCostsChange(costs.map((c) => (c.id === id ? { ...c, amount } : c)));
+  };
+
+  const updateCostField = (id: string, field: "label" | "note", value: string) => {
+    onCostsChange(costs.map((c) => (c.id === id ? { ...c, [field]: value } : c)));
+  };
+
+  const addCost = () => {
+    onCostsChange([
+      ...costs,
+      {
+        id: `custom_${Date.now()}`,
+        category: "その他",
+        label: "",
+        amount: 0,
+        note: "",
+        editable: true,
+      },
+    ]);
+  };
+
+  const deleteCost = (id: string) => {
+    onCostsChange(costs.filter((c) => c.id !== id));
   };
 
   const updateMonthly = (id: string, value: string) => {
@@ -95,6 +117,34 @@ export default function CostTable({
     const total = updated.filter((c) => c.id !== "monthly_total").reduce((s, c) => s + c.amount, 0);
     onMonthlyCostsChange(updated.map((c) => (c.id === "monthly_total" ? { ...c, amount: total } : c)));
   };
+
+  const updateMonthlyField = (id: string, value: string) => {
+    onMonthlyCostsChange(monthlyCosts.map((c) => (c.id === id ? { ...c, label: value } : c)));
+  };
+
+  const addMonthly = () => {
+    const newItem: MonthlyItem = {
+      id: `monthly_custom_${Date.now()}`,
+      label: "",
+      amount: 0,
+      editable: true,
+    };
+    const items = [...monthlyCosts.filter((c) => c.id !== "monthly_total"), newItem];
+    const total = items.reduce((s, c) => s + c.amount, 0);
+    items.push({ id: "monthly_total", label: "月額合計", amount: total, editable: false });
+    onMonthlyCostsChange(items);
+  };
+
+  const deleteMonthly = (id: string) => {
+    if (id === "monthly_total") return;
+    const remaining = monthlyCosts.filter((c) => c.id !== id);
+    const total = remaining.filter((c) => c.id !== "monthly_total").reduce((s, c) => s + c.amount, 0);
+    onMonthlyCostsChange(
+      remaining.map((c) => (c.id === "monthly_total" ? { ...c, amount: total } : c))
+    );
+  };
+
+  const isUserAdded = (id: string) => id.startsWith("custom_") || id.startsWith("monthly_custom_");
 
   const initialTotal = costs.reduce((s, c) => s + c.amount, 0);
   const categories = [...new Set(costs.map((c) => c.category))];
@@ -134,8 +184,11 @@ export default function CostTable({
             "font-bold text-slate-900",
             customerName ? "text-lg mt-0.5" : "text-xl",
           ].join(" ")}>
-            {SECTION.reportTitle[pdfLang] ?? SECTION.reportTitle.ja}
+            物件費用見積書
           </h1>
+          {pdfLang !== "ja" && T[pdfLang]?.docTitle && (
+            <p className="text-[10pt] text-slate-500 leading-tight">{T[pdfLang].docTitle}</p>
+          )}
           <p className="text-xs text-slate-500 mt-1">
             {SECTION.createdDate[pdfLang]}: {new Date().toLocaleDateString("ja-JP")}
           </p>
@@ -227,6 +280,7 @@ export default function CostTable({
                 <span className="print:hidden">備考</span>
                 <span className="hidden print:inline">{SECTION.colNote[pdfLang]}</span>
               </th>
+              <th className="w-12 print:hidden" />
             </tr>
           </thead>
           <tbody>
@@ -240,21 +294,38 @@ export default function CostTable({
                         <span className="inline-block text-xs font-medium text-blue-600 bg-blue-50 rounded px-1.5 py-0.5 mb-1">
                           <span className="print:hidden">{cat}</span>
                           <span className="hidden print:inline">
-                            {CAT_LABELS[cat]?.ja ?? cat}
-                            {pdfLang !== "ja" && CAT_LABELS[cat]?.[pdfLang] && (
-                              <> / {CAT_LABELS[cat][pdfLang]}</>
-                            )}
+                            {bilingual(CAT_LABELS[cat]?.ja ?? cat, CAT_BILINGUAL_KEY[cat], pdfLang)}
                           </span>
                         </span>
                       )}
                       <div>
-                        <ItemLabel id={item.id} fallback={item.label} labelMap={COST_LABELS} pdfLang={pdfLang} />
+                        {isUserAdded(item.id) ? (
+                          <>
+                            <input
+                              type="text"
+                              value={item.label}
+                              onChange={(e) => updateCostField(item.id, "label", e.target.value)}
+                              placeholder="項目名"
+                              className="print:hidden text-sm w-full border-b border-slate-200 focus:outline-none focus:border-[#2d5e3a] py-0.5 placeholder:text-[#a8c4ae]"
+                            />
+                            <span className="hidden print:inline font-medium">{item.label || "（項目名未入力）"}</span>
+                          </>
+                        ) : (
+                          <ItemLabel
+                            id={item.id}
+                            fallback={item.label}
+                            labelMap={COST_LABELS}
+                            bilingualKey={COST_BILINGUAL_KEY[item.id]}
+                            pdfLang={pdfLang}
+                          />
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       {item.editable ? (
                         <>
                           <input
+                            id={`cost-amount-${item.id}`}
                             type="number"
                             min={0}
                             value={item.amount}
@@ -269,7 +340,31 @@ export default function CostTable({
                         <AmountDisplay amount={item.amount} pdfLang={pdfLang} />
                       )}
                     </td>
-                    <td className="hidden sm:table-cell print:table-cell px-4 py-3 text-slate-400 text-xs">{item.note}</td>
+                    <td className="hidden sm:table-cell print:table-cell px-4 py-3 text-slate-400 text-xs">
+                      {isUserAdded(item.id) ? (
+                        <>
+                          <input
+                            type="text"
+                            value={item.note}
+                            onChange={(e) => updateCostField(item.id, "note", e.target.value)}
+                            placeholder="備考"
+                            className="print:hidden w-full border-b border-slate-200 focus:outline-none focus:border-[#2d5e3a] py-0.5 text-xs placeholder:text-[#a8c4ae]"
+                          />
+                          <span className="hidden print:inline">{item.note}</span>
+                        </>
+                      ) : (
+                        item.note
+                      )}
+                    </td>
+                    <td className="px-2 py-3 text-center print:hidden">
+                      <button
+                        onClick={() => deleteCost(item.id)}
+                        className="w-6 h-6 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors text-base leading-none"
+                        aria-label="削除"
+                      >
+                        ×
+                      </button>
+                    </td>
                   </tr>
                 ))
             )}
@@ -278,7 +373,7 @@ export default function CostTable({
             <tr className="bg-blue-50 border-t-2 border-blue-200">
               <td className="px-6 py-4 font-bold text-slate-900">
                 <span className="print:hidden">初期費用合計</span>
-                <span className="hidden print:inline">{SECTION.totalInitial[pdfLang]}</span>
+                <span className="hidden print:inline">{bilingual("初期費用合計", "totalInit", pdfLang)}</span>
               </td>
               <td className="px-4 py-4 text-right">
                 <span className="font-bold text-xl text-blue-700 font-mono">
@@ -289,15 +384,25 @@ export default function CostTable({
                 <span className="print:hidden">消費税込</span>
                 <span className="hidden print:inline">{SECTION.taxIncluded[pdfLang]}</span>
               </td>
+              <td className="px-2 py-4 print:hidden" />
             </tr>
           </tfoot>
         </table>
       </div>
+      <div className="no-print px-6 pt-2 pb-4">
+        <button
+          onClick={addCost}
+          className="border-dashed border border-[#b8d898] text-[#2d5e3a] text-[13px] rounded-lg py-2 w-full hover:bg-[#f7faf4] transition-colors"
+        >
+          ＋ 項目を追加
+        </button>
+      </div>
 
-      {/* ===== 毎月の支払い ===== */}
-      <div className="px-6 pt-6 pb-2 border-t border-slate-100 mt-2">
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-          <span className="print:hidden">毎月の支払い</span>
+      {/* ===== 月額費用 ===== */}
+      <div className="border-t border-[#dce8d4] my-3.5" />
+      <div className="px-6 pb-2">
+        <h3 className="text-[12px] font-medium text-[#2d5e3a] mb-3">
+          <span className="print:hidden">月額費用</span>
           <span className="hidden print:inline">{sectionLabel("monthlyCosts", pdfLang)}</span>
         </h3>
       </div>
@@ -309,12 +414,32 @@ export default function CostTable({
               .map((item) => (
                 <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-3 w-2/5">
-                    <ItemLabel id={item.id} fallback={item.label} labelMap={MONTHLY_LABELS} pdfLang={pdfLang} />
+                    {isUserAdded(item.id) ? (
+                      <>
+                        <input
+                          type="text"
+                          value={item.label}
+                          onChange={(e) => updateMonthlyField(item.id, e.target.value)}
+                          placeholder="項目名"
+                          className="print:hidden text-sm w-full border-b border-slate-200 focus:outline-none focus:border-[#2d5e3a] py-0.5 placeholder:text-[#a8c4ae]"
+                        />
+                        <span className="hidden print:inline font-medium">{item.label || "（項目名未入力）"}</span>
+                      </>
+                    ) : (
+                      <ItemLabel
+                        id={item.id}
+                        fallback={item.label}
+                        labelMap={MONTHLY_LABELS}
+                        bilingualKey={MONTHLY_BILINGUAL_KEY[item.id]}
+                        pdfLang={pdfLang}
+                      />
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right w-1/4">
                     {item.editable ? (
                       <>
                         <input
+                          id={`monthly-amount-${item.id}`}
                           type="number"
                           min={0}
                           value={item.amount}
@@ -330,6 +455,15 @@ export default function CostTable({
                     )}
                   </td>
                   <td className="hidden sm:table-cell print:table-cell px-4 py-3" />
+                  <td className="px-2 py-3 text-center print:hidden">
+                    <button
+                      onClick={() => deleteMonthly(item.id)}
+                      className="w-6 h-6 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors text-base leading-none"
+                      aria-label="削除"
+                    >
+                      ×
+                    </button>
+                  </td>
                 </tr>
               ))}
           </tbody>
@@ -337,20 +471,55 @@ export default function CostTable({
             {monthlyCosts
               .filter((c) => c.id === "monthly_total")
               .map((item) => (
-                <tr key={item.id} className="bg-emerald-50 border-t-2 border-emerald-200">
-                  <td className="px-6 py-4 font-bold text-slate-900">
-                    <ItemLabel id={item.id} fallback={item.label} labelMap={MONTHLY_LABELS} pdfLang={pdfLang} />
+                <tr key={item.id} className="bg-[#eaf3de] border-t-2 border-[#b8d898]">
+                  <td className="px-6 py-4 font-bold text-[#1a2e20]">
+                    <ItemLabel
+                      id={item.id}
+                      fallback={item.label}
+                      labelMap={MONTHLY_LABELS}
+                      bilingualKey={MONTHLY_BILINGUAL_KEY[item.id]}
+                      pdfLang={pdfLang}
+                    />
                   </td>
-                  <td className="px-4 py-4 text-right font-bold text-xl text-emerald-700 font-mono">
+                  <td className="px-4 py-4 text-right font-bold text-xl text-[#2d5e3a] font-mono">
                     <AmountDisplay amount={item.amount} pdfLang={pdfLang} />
                     <span className="text-sm font-normal ml-1 print:hidden">/月</span>
                   </td>
                   <td className="hidden sm:table-cell print:table-cell px-4 py-4" />
+                  <td className="px-2 py-4 print:hidden" />
                 </tr>
               ))}
           </tfoot>
         </table>
       </div>
+      <div className="no-print px-6 pt-2 pb-4">
+        <button
+          onClick={addMonthly}
+          className="border-dashed border border-[#b8d898] text-[#2d5e3a] text-[13px] rounded-lg py-2 w-full hover:bg-[#f7faf4] transition-colors"
+        >
+          ＋ 項目を追加
+        </button>
+      </div>
+
+      {/* ===== 物件写真（印刷時のみ・添付がある場合のみ） ===== */}
+      {photoUrls.length > 0 && (
+        <div className="hidden print:block px-6 py-6 border-t border-slate-100">
+          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+            物件写真
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            {photoUrls.map((url, i) => (
+              <img
+                key={i}
+                src={url}
+                alt={`物件写真 ${i + 1}`}
+                className="w-full h-40 object-cover rounded border border-slate-200"
+                style={{ breakInside: "avoid", pageBreakInside: "avoid" }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ===== 用語解説（印刷時のみ） ===== */}
       {glossaryItems.length > 0 && (
@@ -373,6 +542,14 @@ export default function CostTable({
           </div>
         </div>
       )}
+
+      {/* ===== お客様向け免責文言（印刷時のみ・フッター直上） ===== */}
+      <div className="hidden print:block px-6 pt-3 pb-4 mt-2 border-t border-slate-200 text-[8pt] text-slate-500 leading-snug">
+        <p>※ 本見積書は概算です。実際の費用は変動する場合があります。詳細は担当者にご確認ください。</p>
+        {pdfLang !== "ja" && T[pdfLang]?.customerDisclaimer && (
+          <p className="mt-1">{T[pdfLang].customerDisclaimer}</p>
+        )}
+      </div>
     </div>
   );
 }
