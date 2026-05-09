@@ -9,6 +9,7 @@ import PdfExportButton from "@/components/PdfExportButton";
 import PdfModal from "@/components/PdfModal";
 import HistoryTab from "@/components/HistoryTab";
 import CompareTab from "@/components/CompareTab";
+import LogoutButton from "@/components/LogoutButton";
 import {
   LANGS, T, bilingual,
   COST_BILINGUAL_KEY, MONTHLY_BILINGUAL_KEY,
@@ -449,6 +450,7 @@ export default function Home() {
           <span className="bg-[#eaf3de] text-[#27500a] text-[10px] rounded-full border border-[#b8d898] px-2 py-0.5 font-medium shrink-0">
             Beta
           </span>
+          <LogoutButton />
         </div>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 flex gap-1">
           {TABS.map(({ id, label }) => (
