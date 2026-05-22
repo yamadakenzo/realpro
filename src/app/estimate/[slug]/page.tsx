@@ -9,6 +9,7 @@ type SharedEstimate = {
   customerInfo?: CustomerInfo;
   comment?: string;
   validUntil?: string;
+  propertyPhotoUrls?: string[];
 };
 
 type EstimateRow = {
@@ -64,7 +65,9 @@ export default async function EstimateViewPage({
   const row = await fetchEstimate(slug);
   if (!row) return <NotFound />;
 
-  const { result, agentInfo, customerInfo, comment, validUntil } = row.data ?? {};
+  const {
+    result, agentInfo, customerInfo, comment, validUntil, propertyPhotoUrls,
+  } = row.data ?? {};
 
   if (!result) return <NotFound />;
 
@@ -73,6 +76,7 @@ export default async function EstimateViewPage({
   const monthly: MonthlyItem[] = result.monthlyCosts ?? [];
   const monthlyTotal = monthly.find((m) => m.id === "monthly_total");
   const monthlyOthers = monthly.filter((m) => m.id !== "monthly_total");
+  const photos = (propertyPhotoUrls ?? []).filter((u) => typeof u === "string" && u.length > 0);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -98,6 +102,26 @@ export default async function EstimateViewPage({
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-4">
         {customerInfo?.customerName && (
           <p className="text-sm text-[#1a2e20]">{customerInfo.customerName} 様</p>
+        )}
+
+        {/* 物件写真ギャラリー */}
+        {photos.length > 0 && (
+          <section className="bg-white rounded-xl border border-[#dce8d4] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#eaf3de] bg-[#f7faf4] flex items-baseline justify-between">
+              <h2 className="text-sm font-semibold text-[#1a2e20]">物件写真</h2>
+              <span className="text-xs text-[#7a9e82]">{photos.length} 枚</span>
+            </div>
+            <div className="flex gap-2 overflow-x-auto p-3 snap-x snap-mandatory">
+              {photos.map((url, i) => (
+                <img
+                  key={`${url}-${i}`}
+                  src={url}
+                  alt={`物件写真 ${i + 1}`}
+                  className="max-h-64 h-64 w-auto object-cover rounded-lg shrink-0 snap-start bg-[#f7faf4]"
+                />
+              ))}
+            </div>
+          </section>
         )}
 
         {/* 物件情報 */}

@@ -14,6 +14,7 @@ import {
   LANGS, T, bilingual,
   COST_BILINGUAL_KEY, MONTHLY_BILINGUAL_KEY,
 } from "@/lib/translations";
+import { supabase } from "@/lib/supabase";
 import type {
   AgentInfo, AnalyzeResponse, CostItem, CustomerInfo,
   Language, MonthlyItem, SavedEstimate,
@@ -401,18 +402,46 @@ export default function Home() {
     }
   };
 
+  const uploadPropertyPhotos = async (files: File[]): Promise<string[]> => {
+    if (files.length === 0) return [];
+    const folder =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const urls: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = (file.name.split(".").pop() || "jpg")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")
+        .slice(0, 5) || "jpg";
+      const path = `${folder}/${i}.${ext}`;
+      const { error } = await supabase.storage
+        .from("estimate-photos")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (error) {
+        throw new Error(`画像のアップロードに失敗しました (${file.name}): ${error.message}`);
+      }
+      const { data } = supabase.storage.from("estimate-photos").getPublicUrl(path);
+      urls.push(data.publicUrl);
+    }
+    return urls;
+  };
+
   const handleShareUrl = async () => {
     if (!result || shareUrlLoading) return;
     setShareUrlLoading(true);
     setShareUrlError(null);
     setShareUrlCopied(false);
     try {
+      const uploadedPhotoUrls = await uploadPropertyPhotos(propertyPhotos);
       const payload = {
         result,
         agentInfo,
         customerInfo: customerInfo.customerName ? customerInfo : undefined,
         comment: comment.trim() || undefined,
         validUntil,
+        propertyPhotoUrls: uploadedPhotoUrls,
       };
       const res = await fetch("/api/estimates", {
         method: "POST",
