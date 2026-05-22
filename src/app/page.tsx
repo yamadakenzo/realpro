@@ -98,6 +98,12 @@ export default function Home() {
   const [previewText, setPreviewText] = useState("");
   const [copied, setCopied] = useState(false);
 
+  // URL共有
+  const [shareUrlLoading, setShareUrlLoading] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareUrlCopied, setShareUrlCopied] = useState(false);
+  const [shareUrlError, setShareUrlError] = useState<string | null>(null);
+
   // 初期ロード
   useEffect(() => {
     setEstimates(loadEstimates());
@@ -153,6 +159,8 @@ export default function Home() {
     setPropertyPhotos([]);
     setPropertyPhotoUrls([]);
     setUploaderKey((k) => k + 1);
+    setShareUrl("");
+    setShareUrlError(null);
   };
 
   const handlePhotoAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -331,6 +339,8 @@ export default function Home() {
     setPropertyPhotos([]);
     setPropertyPhotoUrls([]);
     setUploaderKey((k) => k + 1);
+    setShareUrl("");
+    setShareUrlError(null);
     setActiveTab("new");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -388,6 +398,54 @@ export default function Home() {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // 一部ブラウザでは clipboard 権限が無い
+    }
+  };
+
+  const handleShareUrl = async () => {
+    if (!result || shareUrlLoading) return;
+    setShareUrlLoading(true);
+    setShareUrlError(null);
+    setShareUrlCopied(false);
+    try {
+      const payload = {
+        result,
+        agentInfo,
+        customerInfo: customerInfo.customerName ? customerInfo : undefined,
+        comment: comment.trim() || undefined,
+        validUntil,
+      };
+      const res = await fetch("/api/estimates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? "URLの生成に失敗しました");
+      }
+      setShareUrl(data.url);
+      try {
+        await navigator.clipboard.writeText(data.url);
+        setShareUrlCopied(true);
+        setTimeout(() => setShareUrlCopied(false), 2000);
+      } catch {
+        // クリップボード権限なし → 画面表示のみ
+      }
+    } catch (err) {
+      setShareUrlError(err instanceof Error ? err.message : "不明なエラーが発生しました");
+    } finally {
+      setShareUrlLoading(false);
+    }
+  };
+
+  const handleCopyShareUrl = async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareUrlCopied(true);
+      setTimeout(() => setShareUrlCopied(false), 2000);
+    } catch {
+      // 無視
     }
   };
 
@@ -581,6 +639,23 @@ export default function Home() {
                     </span>
                     LINEで共有
                   </button>
+                  {/* URLで共有 */}
+                  <button
+                    onClick={handleShareUrl}
+                    disabled={!result || shareUrlLoading}
+                    className={[
+                      "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors",
+                      result && !shareUrlLoading
+                        ? "bg-[#4a7f86] text-white hover:bg-[#3a6970]"
+                        : "bg-slate-100 text-slate-400 cursor-not-allowed",
+                    ].join(" ")}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M13.828 10.172a4 4 0 015.656 0l1.414 1.414a4 4 0 010 5.656l-2.829 2.829a4 4 0 01-5.656 0l-1.414-1.414M10.172 13.828a4 4 0 01-5.656 0L3.1 12.414a4 4 0 010-5.656l2.829-2.829a4 4 0 015.656 0l1.414 1.414" />
+                    </svg>
+                    {shareUrlLoading ? "生成中..." : "URLで共有"}
+                  </button>
                   {/* PDFを開く */}
                   <button
                     onClick={openPreviewLang}
@@ -633,6 +708,44 @@ export default function Home() {
                     比較表に追加
                   </button>
                 </div>
+
+                {(shareUrl || shareUrlError) && (
+                  <div className="mt-3">
+                    {shareUrlError && (
+                      <p className="text-xs text-red-600">{shareUrlError}</p>
+                    )}
+                    {shareUrl && (
+                      <div className="flex items-center gap-2 p-2.5 bg-[#f7faf4] border border-[#dce8d4] rounded-lg">
+                        <input
+                          type="text"
+                          value={shareUrl}
+                          readOnly
+                          onFocus={(e) => e.currentTarget.select()}
+                          className="flex-1 min-w-0 bg-transparent text-xs text-[#1a2e20] focus:outline-none truncate"
+                        />
+                        <button
+                          onClick={handleCopyShareUrl}
+                          className={[
+                            "shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors",
+                            shareUrlCopied
+                              ? "bg-emerald-500 text-white border-emerald-500"
+                              : "bg-white border-[#dce8d4] text-[#2d5e3a] hover:bg-[#eaf3de]",
+                          ].join(" ")}
+                        >
+                          {shareUrlCopied ? "✓ コピー済み" : "コピー"}
+                        </button>
+                        <a
+                          href={shareUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium border border-[#dce8d4] bg-white text-[#2d5e3a] hover:bg-[#eaf3de] transition-colors"
+                        >
+                          開く
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
