@@ -72,6 +72,11 @@ export default function Home() {
   const [validUntil, setValidUntil] = useState(getDefaultValidUntil);
   const [comment, setComment] = useState("");
 
+  // 担当者コメント AI生成
+  const [aiCommentLang, setAiCommentLang] = useState<Language>("en");
+  const [aiCommentLoading, setAiCommentLoading] = useState(false);
+  const [aiCommentError, setAiCommentError] = useState<string | null>(null);
+
   // 物件写真
   const [propertyPhotos, setPropertyPhotos] = useState<File[]>([]);
   const [propertyPhotoUrls, setPropertyPhotoUrls] = useState<string[]>([]);
@@ -144,6 +149,31 @@ export default function Home() {
       setError(err instanceof Error ? err.message : "不明なエラーが発生しました");
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const handleGenerateComment = async () => {
+    if (!result) return;
+    setAiCommentLoading(true);
+    setAiCommentError(null);
+    try {
+      const res = await fetch("/api/generate-comment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          extracted: result.extracted,
+          costs: result.costs,
+          monthlyCosts: result.monthlyCosts,
+          language: aiCommentLang,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "コメント生成に失敗しました");
+      setComment(data.comment ?? "");
+    } catch (err) {
+      setAiCommentError(err instanceof Error ? err.message : "不明なエラーが発生しました");
+    } finally {
+      setAiCommentLoading(false);
     }
   };
 
@@ -862,13 +892,58 @@ export default function Home() {
                     <span className="text-xs text-slate-400 ml-1 no-print">— お客様へのメッセージ</span>
                   </div>
                   <div className="p-6">
+                    <div className="no-print mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-[#f7faf4] border border-[#dce8d4] px-3 py-2.5">
+                      <span className="text-xs font-medium text-[#1a2e20] shrink-0">AIで下書きを生成</span>
+                      <select
+                        value={aiCommentLang}
+                        onChange={(e) => setAiCommentLang(e.target.value as Language)}
+                        disabled={aiCommentLoading}
+                        className="text-xs rounded-md border border-[#cfddc3] bg-white px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#b8d898] disabled:opacity-50"
+                      >
+                        {LANGS.map((l) => (
+                          <option key={l.code} value={l.code}>
+                            {l.flag} {l.label}（{l.sub}）
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={handleGenerateComment}
+                        disabled={aiCommentLoading}
+                        className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-[#2d5e3a] hover:bg-[#244c2f] text-white text-xs font-medium px-3 py-1.5 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {aiCommentLoading ? (
+                          <>
+                            <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="4" />
+                              <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+                            </svg>
+                            生成中…
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                            AIで自動生成
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    {aiCommentError && (
+                      <p className="no-print mb-2 text-xs text-red-600">{aiCommentError}</p>
+                    )}
                     <textarea
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
                       placeholder="例）この物件は駅近で生活環境も充実しています。ご不明な点はお気軽にご相談ください。"
-                      rows={4}
+                      rows={6}
                       className="no-print w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent resize-none placeholder:text-[#a8c4ae] leading-relaxed"
                     />
+                    <p className="no-print mt-1.5 text-xs text-slate-400">
+                      生成結果はそのまま編集できます。
+                    </p>
                     {comment && (
                       <p className="hidden print:block text-sm text-slate-700 leading-relaxed mt-2 whitespace-pre-wrap">
                         {comment}
