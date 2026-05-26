@@ -76,6 +76,8 @@ export default function Home() {
   const [aiCommentLang, setAiCommentLang] = useState<Language>("en");
   const [aiCommentLoading, setAiCommentLoading] = useState(false);
   const [aiCommentError, setAiCommentError] = useState<string | null>(null);
+  // URLパラメータ ?customerId=xxx で housing-jp 顧客情報と連携
+  const [customerId, setCustomerId] = useState<string>("");
 
   // 物件写真
   const [propertyPhotos, setPropertyPhotos] = useState<File[]>([]);
@@ -117,6 +119,11 @@ export default function Home() {
       const logo = localStorage.getItem(LOGO_KEY);
       if (logo) setLogoDataUrl(logo);
     } catch {}
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const cid = params.get("customerId");
+      if (cid) setCustomerId(cid);
+    }
   }, []);
 
   // 物件名をデフォルト保存名に
@@ -165,6 +172,7 @@ export default function Home() {
           costs: result.costs,
           monthlyCosts: result.monthlyCosts,
           language: aiCommentLang,
+          customerId: customerId || undefined,
         }),
       });
       const data = await res.json();
@@ -894,6 +902,11 @@ export default function Home() {
                   <div className="p-6">
                     <div className="no-print mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-[#f7faf4] border border-[#dce8d4] px-3 py-2.5">
                       <span className="text-xs font-medium text-[#1a2e20] shrink-0">AIで下書きを生成</span>
+                      {customerId && (
+                        <span className="text-[10px] font-medium text-[#1a2e20] bg-white border border-[#cfddc3] rounded-full px-2 py-0.5">
+                          顧客連携: {customerId.slice(0, 8)}…
+                        </span>
+                      )}
                       <select
                         value={aiCommentLang}
                         onChange={(e) => setAiCommentLang(e.target.value as Language)}
