@@ -1,7 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
-import type { CostItem, ExtractedProperty, Language, MonthlyItem } from "@/types";
+import type {
+  CostItem,
+  ExtractedProperty,
+  Language,
+  MonthlyItem,
+  NearbyPlace,
+  NearbyResult,
+} from "@/types";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -16,26 +23,6 @@ const LANG_NAMES: Record<Language, string> = {
   es: "スペイン語 (Español)",
   pt: "ポルトガル語 (Português)",
   id: "インドネシア語 (Bahasa Indonesia)",
-};
-
-type NearbyPlace = { name: string; minutes: number };
-
-type NearbyResult = {
-  stations: NearbyPlace[];
-  busStops: NearbyPlace[];
-  supermarkets: NearbyPlace[];
-  convenienceStores: NearbyPlace[];
-  drugstores: NearbyPlace[];
-  hundredYenShops: NearbyPlace[];
-  clinics: NearbyPlace[];
-  dentists: NearbyPlace[];
-  parks: NearbyPlace[];
-  nurseries: NearbyPlace[];
-  kindergartens: NearbyPlace[];
-  elementarySchools: NearbyPlace[];
-  laundries: NearbyPlace[];
-  postOffices: NearbyPlace[];
-  atms: NearbyPlace[];
 };
 
 // 直線距離(m)→徒歩分数。Google目安の徒歩80m/分で算出し切り上げ
@@ -347,10 +334,12 @@ ${customerSection}
 
     const text = message.content[0].type === "text" ? message.content[0].text.trim() : "";
 
+    // 周辺施設データを保存して二重課金を回避するためレスポンスにも含める
     return Response.json({
       comment: text,
       usedPlacesApi: nearby !== null,
       usedCustomerData: customer !== null,
+      nearby: nearby ?? undefined,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "不明なエラーが発生しました";

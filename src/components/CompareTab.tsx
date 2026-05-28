@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { SavedEstimate } from "@/types";
+import type { NearbyPlace, NearbyResult, SavedEstimate } from "@/types";
 
 interface Props {
   estimates: SavedEstimate[];
@@ -33,6 +33,46 @@ function minIdx(values: number[]): number {
   const min = Math.min(...valid);
   return values.indexOf(min);
 }
+
+// 最寄り駅＋徒歩分数を1行にまとめる（手入力 or AI抽出値を優先、なければnearbyの最寄り駅）
+function formatStation(est: SavedEstimate): string {
+  const ext = est.result.extracted;
+  if (ext.nearestStation) {
+    const min = ext.stationWalkMinutes ?? 0;
+    return min > 0 ? `${ext.nearestStation}（徒歩${min}分）` : ext.nearestStation;
+  }
+  const first = est.nearby?.stations?.[0];
+  if (first) {
+    return first.minutes > 0 ? `${first.name}（徒歩${first.minutes}分）` : first.name;
+  }
+  return "—";
+}
+
+function formatFacilities(est: SavedEstimate): string {
+  const list = est.result.extracted.facilities ?? [];
+  return list.length > 0 ? list.join("、") : "—";
+}
+
+function formatRecommend(est: SavedEstimate): string {
+  return (est.result.extracted.recommendPoint ?? "").trim() || "—";
+}
+
+// nearby から代表1件を「名称（徒歩X分）」で取り出す
+function firstPlace(places: NearbyPlace[] | undefined): string {
+  const p = places?.[0];
+  if (!p) return "—";
+  return p.minutes > 0 ? `${p.name}（徒歩${p.minutes}分）` : p.name;
+}
+
+const NEARBY_ROWS: { label: string; key: keyof NearbyResult }[] = [
+  { label: "スーパー",       key: "supermarkets" },
+  { label: "コンビニ",       key: "convenienceStores" },
+  { label: "ドラッグストア", key: "drugstores" },
+  { label: "公園",           key: "parks" },
+  { label: "小学校",         key: "elementarySchools" },
+];
+
+const hasAnyNearby = (estimates: SavedEstimate[]) => estimates.some((e) => !!e.nearby);
 
 export default function CompareTab({ estimates }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
@@ -162,6 +202,25 @@ export default function CompareTab({ estimates }: Props) {
                 <CompRow label="部屋番号" values={selectedEstimates.map((e) => e.result.extracted.roomNumber || "—")} isText />
                 <CompRow label="間取り" values={selectedEstimates.map((e) => e.result.extracted.floorPlan || "—")} isText />
                 <CompRow label="面積" values={selectedEstimates.map((e) => e.result.extracted.area > 0 ? `${e.result.extracted.area} m²` : "—")} isText />
+                <CompRow label="築年数" values={selectedEstimates.map((e) => e.result.extracted.buildingAge || "—")} isText />
+                <CompRow label="最寄り駅" values={selectedEstimates.map(formatStation)} isText />
+                <CompRow label="設備" values={selectedEstimates.map(formatFacilities)} isText wrap />
+                <CompRow label="おすすめポイント" values={selectedEstimates.map(formatRecommend)} isText wrap />
+
+                {/* 周辺施設（コメント生成済みの物件のみデータあり） */}
+                {hasAnyNearby(selectedEstimates) && (
+                  <>
+                    <SectionRow label="周辺施設（担当者コメント生成時に取得）" colCount={selectedEstimates.length} />
+                    {NEARBY_ROWS.map(({ label, key }) => (
+                      <CompRow
+                        key={key}
+                        label={label}
+                        values={selectedEstimates.map((e) => firstPlace(e.nearby?.[key]))}
+                        isText
+                      />
+                    ))}
+                  </>
+                )}
 
                 {/* 月額 */}
                 <SectionRow label="毎月の支払い" colCount={selectedEstimates.length} />
@@ -200,19 +259,21 @@ function CompRow({
   isText = false,
   isBold = false,
   highlight = false,
+  wrap = false,
 }: {
   label: string;
   values: (number | string)[];
   isText?: boolean;
   isBold?: boolean;
   highlight?: boolean;
+  wrap?: boolean;
 }) {
   const nums = isText ? [] : (values as number[]);
   const lowestIdx = highlight ? minIdx(nums) : -1;
 
   return (
     <tr className="border-b border-slate-100 hover:bg-slate-50">
-      <td className={`px-4 py-2.5 text-slate-600 ${isBold ? "font-bold" : ""}`}>{label}</td>
+      <td className={`px-4 py-2.5 text-slate-600 align-top ${isBold ? "font-bold" : ""}`}>{label}</td>
       {values.map((v, i) => {
         const isLowest = lowestIdx === i;
         const isEmpty = isText ? v === "—" : (v as number) === 0;
@@ -220,7 +281,9 @@ function CompRow({
           <td
             key={i}
             className={[
-              "px-4 py-2.5 text-center font-mono",
+              "px-4 py-2.5 align-top",
+              isText ? "" : "text-center font-mono",
+              isText && wrap ? "text-left whitespace-pre-wrap leading-relaxed" : "text-center",
               isBold ? "font-bold text-base" : "",
               isLowest ? "text-emerald-700 bg-emerald-50 font-bold" : "",
               isEmpty ? "text-slate-300" : "text-slate-800",

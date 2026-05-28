@@ -17,12 +17,19 @@ import {
 import { supabase } from "@/lib/supabase";
 import type {
   AgentInfo, AnalyzeResponse, CostItem, CustomerInfo,
-  Language, MonthlyItem, SavedEstimate,
+  Language, MonthlyItem, NearbyResult, SavedEstimate,
 } from "@/types";
 
 type PdfMode = "preview" | "line-pdf" | "line-text";
 
 // 「最低限あって欲しい」初期費用項目（解析後に0円 or 未追加なら警告表示）
+// 設備チェックボックス候補（比較表で並べる用）
+const FACILITY_OPTIONS = [
+  "オートロック", "宅配BOX", "バストイレ別", "追い焚き", "独立洗面台",
+  "エアコン", "室内洗濯機置場", "モニター付インターホン", "2階以上",
+  "南向き", "駐車場あり", "ペット可",
+];
+
 const MISSING_CHECK_ITEMS: { id: string; label: string; category: string; note: string }[] = [
   { id: "deposit",        label: "敷金",           category: "家賃関連", note: "退去時に精算" },
   { id: "key_money",      label: "礼金",           category: "家賃関連", note: "返還なし" },
@@ -76,6 +83,8 @@ export default function Home() {
   const [aiCommentLang, setAiCommentLang] = useState<Language>("en");
   const [aiCommentLoading, setAiCommentLoading] = useState(false);
   const [aiCommentError, setAiCommentError] = useState<string | null>(null);
+  // 担当者コメント生成時に取得した周辺施設データを保持し、保存時に流用（再課金回避）
+  const [nearby, setNearby] = useState<NearbyResult | null>(null);
   // URLパラメータ ?customerId=xxx で housing-jp 顧客情報と連携
   const [customerId, setCustomerId] = useState<string>("");
 
@@ -178,6 +187,8 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "コメント生成に失敗しました");
       setComment(data.comment ?? "");
+      // 比較表で使う周辺施設データを保持（保存時にSavedEstimateに含める）
+      if (data.nearby) setNearby(data.nearby as NearbyResult);
     } catch (err) {
       setAiCommentError(err instanceof Error ? err.message : "不明なエラーが発生しました");
     } finally {
@@ -193,6 +204,7 @@ export default function Home() {
     setHasPrinted(false);
     setValidUntil(getDefaultValidUntil());
     setComment("");
+    setNearby(null);
     setCustomerInfo(DEFAULT_CUSTOMER);
     propertyPhotoUrls.forEach((u) => URL.revokeObjectURL(u));
     setPropertyPhotos([]);
@@ -254,6 +266,22 @@ export default function Home() {
   const handleRoomNumberChange = (roomNumber: string) => {
     if (!result) return;
     setResult({ ...result, extracted: { ...result.extracted, roomNumber } });
+  };
+
+  // 比較表向けの手入力フィールド更新（築年数・最寄り駅・徒歩分数・設備・おすすめポイント）
+  const updateExtractedField = <K extends keyof AnalyzeResponse["extracted"]>(
+    key: K,
+    value: AnalyzeResponse["extracted"][K],
+  ) => {
+    if (!result) return;
+    setResult({ ...result, extracted: { ...result.extracted, [key]: value } });
+  };
+
+  const toggleFacility = (label: string) => {
+    if (!result) return;
+    const current = result.extracted.facilities ?? [];
+    const next = current.includes(label) ? current.filter((f) => f !== label) : [...current, label];
+    updateExtractedField("facilities", next);
   };
 
   const handlePdfConfirm = (lang: Language, glossary: boolean) => {
@@ -343,6 +371,7 @@ export default function Home() {
       agentInfo,
       customerInfo: customerInfo.customerName ? customerInfo : undefined,
       comment: comment.trim() || undefined,
+      nearby: nearby ?? undefined,
     };
     const updated = [entry, ...estimates];
     setEstimates(updated);
@@ -369,6 +398,7 @@ export default function Home() {
     setAgentInfo(restoredAgent);
     setCustomerInfo(est.customerInfo ?? DEFAULT_CUSTOMER);
     setComment(est.comment ?? "");
+    setNearby(est.nearby ?? null);
     setError(null);
     setSaveName("");
     setSaved(false);
@@ -885,6 +915,107 @@ export default function Home() {
                   onMonthlyCostsChange={handleMonthlyCostsChange}
                   onRoomNumberChange={handleRoomNumberChange}
                 />
+
+                {/* 比較表向けの物件詳細（築年数・最寄り駅・設備・おすすめポイント） */}
+                <div className="no-print bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                    <h3 className="text-sm font-semibold text-slate-700">物件詳細（比較表に並べる項目）</h3>
+                    <span className="text-xs text-slate-400 ml-1">— 画像から読めなかった項目は手入力可</span>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    {/* 築年数・最寄り駅・徒歩分数 */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <label className="block">
+                        <span className="block text-xs font-medium text-slate-600 mb-1">築年数</span>
+                        <input
+                          type="text"
+                          value={result.extracted.buildingAge ?? ""}
+                          onChange={(e) => updateExtractedField("buildingAge", e.target.value)}
+                          placeholder="例：築15年 / 新築"
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="block text-xs font-medium text-slate-600 mb-1">最寄り駅</span>
+                        <input
+                          type="text"
+                          value={result.extracted.nearestStation ?? ""}
+                          onChange={(e) => updateExtractedField("nearestStation", e.target.value)}
+                          placeholder="例：新開町駅"
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="block text-xs font-medium text-slate-600 mb-1">徒歩分数</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={result.extracted.stationWalkMinutes ?? 0}
+                          onChange={(e) => updateExtractedField("stationWalkMinutes", Number(e.target.value) || 0)}
+                          placeholder="例：8"
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                        />
+                      </label>
+                    </div>
+
+                    {/* 設備 */}
+                    <div>
+                      <span className="block text-xs font-medium text-slate-600 mb-2">設備</span>
+                      <div className="flex flex-wrap gap-2">
+                        {FACILITY_OPTIONS.map((label) => {
+                          const checked = (result.extracted.facilities ?? []).includes(label);
+                          return (
+                            <button
+                              key={label}
+                              type="button"
+                              onClick={() => toggleFacility(label)}
+                              className={[
+                                "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                                checked
+                                  ? "bg-blue-50 border-blue-300 text-blue-700"
+                                  : "bg-white border-slate-200 text-slate-500 hover:border-slate-300",
+                              ].join(" ")}
+                            >
+                              {checked ? "✓ " : ""}{label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {/* リスト外の設備も拾えるよう、追加された自由入力分を表示 */}
+                      {(result.extracted.facilities ?? [])
+                        .filter((f) => !FACILITY_OPTIONS.includes(f))
+                        .map((label) => (
+                          <span key={label} className="inline-flex items-center gap-1 mt-2 mr-2 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-50 border border-blue-300 text-blue-700">
+                            {label}
+                            <button
+                              type="button"
+                              onClick={() => toggleFacility(label)}
+                              className="text-blue-500 hover:text-blue-700"
+                              aria-label="削除"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                    </div>
+
+                    {/* おすすめポイント */}
+                    <label className="block">
+                      <span className="block text-xs font-medium text-slate-600 mb-1">おすすめポイント（1〜2行・比較表に並びます）</span>
+                      <textarea
+                        value={result.extracted.recommendPoint ?? ""}
+                        onChange={(e) => updateExtractedField("recommendPoint", e.target.value)}
+                        rows={2}
+                        placeholder="例：日当たり良好で南向き、駅徒歩5分で買い物も便利"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent resize-y"
+                      />
+                    </label>
+                  </div>
+                </div>
 
                 {/* 担当者コメント */}
                 <div className={[

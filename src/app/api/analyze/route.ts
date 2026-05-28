@@ -29,7 +29,7 @@ async function extractPropertyData(
             text: `これらの不動産物件の画像（${images.length}枚）から以下の情報をJSON形式で抽出してください。
 複数枚ある場合は情報を統合し、より詳細な値を優先してください。
 数値は円単位の整数で返してください（万円表記なら10000倍）。
-不明な項目は0にしてください。
+不明な項目は数値なら0、文字列なら空文字、配列なら空配列にしてください。
 
 {
   "propertyName": "物件名",
@@ -43,8 +43,17 @@ async function extractPropertyData(
   "fireInsuranceMonthly": 火災保険の月額（円）※月払いの場合のみ、一括払いや不明なら0,
   "guaranteeFeeMonthly": 月額保証料（円）※毎月請求される保証料のみ、初回一括なら0,
   "addressRomaji": "住所のローマ字・英語表記（例: 2-113 Shinkaichō, Tokoname-shi, Aichi-ken）※番地はハイフン区切り・丁目は数字のみ・市区町村にサフィックス付与",
-  "roomNumber": "部屋番号（例: 101号室）※画像に明記されていれば抽出、なければ空文字"
+  "roomNumber": "部屋番号（例: 101号室）※画像に明記されていれば抽出、なければ空文字",
+  "buildingAge": "築年数（例: 築15年 / 新築 / 築浅）※画像に書いてあれば抽出、なければ空文字",
+  "nearestStation": "最寄り駅（例: 新開町駅）※路線名や複数駅があれば最も近い1駅のみ。なければ空文字",
+  "stationWalkMinutes": 最寄り駅までの徒歩分数（整数）※画像に書いてあれば抽出、なければ0,
+  "facilities": ["設備の配列。以下から該当するものだけ含める。なければ空配列",
+                 "オートロック", "宅配BOX", "バストイレ別", "追い焚き", "独立洗面台",
+                 "エアコン", "室内洗濯機置場", "モニター付インターホン", "2階以上",
+                 "南向き", "駐車場あり", "ペット可", "楽器可"]
 }
+
+facilitiesの注意：上のリストはあくまで候補です。画像から確認できたものだけを配列に含めてください。確認できないものは絶対に含めないでください。リストに無い設備も画像にあれば自由に追加して構いません。
 
 JSONのみ返してください。`,
           },
@@ -58,6 +67,9 @@ JSONのみ返してください。`,
   if (!match) throw new Error("物件情報の抽出に失敗しました");
 
   const raw = JSON.parse(match[0]);
+  const facilities = Array.isArray(raw.facilities)
+    ? raw.facilities.filter((f: unknown): f is string => typeof f === "string" && f.trim().length > 0)
+    : [];
   return {
     propertyName: raw.propertyName ?? "",
     address: raw.address ?? "",
@@ -71,6 +83,11 @@ JSONのみ返してください。`,
     guaranteeFeeMonthly: Number(raw.guaranteeFeeMonthly) || 0,
     addressRomaji: raw.addressRomaji ?? "",
     roomNumber: raw.roomNumber ?? "",
+    buildingAge: raw.buildingAge ?? "",
+    nearestStation: raw.nearestStation ?? "",
+    stationWalkMinutes: Number(raw.stationWalkMinutes) || 0,
+    facilities,
+    recommendPoint: "",
   };
 }
 
