@@ -77,6 +77,9 @@ const hasAnyNearby = (estimates: SavedEstimate[]) => estimates.some((e) => !!e.n
 export default function CompareTab({ estimates }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
   const [comparing, setComparing] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
+  const [shareIsError, setShareIsError] = useState(false);
 
   const toggle = (id: string) => {
     setComparing(false);
@@ -86,6 +89,48 @@ export default function CompareTab({ estimates }: Props) {
   };
 
   const selectedEstimates = selected.map((id) => estimates.find((e) => e.id === id)!).filter(Boolean);
+
+  const handleCopyCompareUrl = async () => {
+    if (selectedEstimates.length < 2 || shareBusy) return;
+    setShareBusy(true);
+    setShareMsg(null);
+    setShareIsError(false);
+    try {
+      const slugs: string[] = [];
+      for (const est of selectedEstimates) {
+        const payload = {
+          result: est.result,
+          agentInfo: est.agentInfo,
+          customerInfo: est.customerInfo,
+          comment: est.comment,
+          nearby: est.nearby,
+        };
+        const res = await fetch("/api/estimates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.slug) {
+          throw new Error(data.error ?? "URLの生成に失敗しました");
+        }
+        slugs.push(data.slug as string);
+      }
+      const base = typeof window !== "undefined"
+        ? window.location.origin
+        : "https://realpro-one.vercel.app";
+      const url = `${base}/compare?s=${slugs.join(",")}`;
+      await navigator.clipboard.writeText(url);
+      setShareMsg("コピーしました！");
+      setTimeout(() => setShareMsg(null), 2000);
+    } catch (err) {
+      setShareIsError(true);
+      setShareMsg(err instanceof Error ? err.message : "失敗しました");
+      setTimeout(() => setShareMsg(null), 3000);
+    } finally {
+      setShareBusy(false);
+    }
+  };
 
   if (estimates.length === 0) {
     return (
@@ -109,7 +154,7 @@ export default function CompareTab({ estimates }: Props) {
             <h3 className="text-sm font-semibold text-slate-700">比較する物件を選択</h3>
             <p className="text-xs text-slate-400 mt-0.5">最大3件まで選択できます（現在 {selected.length} 件）</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap items-center">
             {selected.length >= 2 && (
               <button
                 onClick={() => setComparing(true)}
@@ -117,6 +162,27 @@ export default function CompareTab({ estimates }: Props) {
               >
                 比較表を作成
               </button>
+            )}
+            {selected.length >= 2 && (
+              <button
+                onClick={handleCopyCompareUrl}
+                disabled={shareBusy}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-[#2d5e3a] text-white hover:bg-[#23472b] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M13.828 10.172a4 4 0 015.656 5.656l-3 3a4 4 0 01-5.656 0M10.172 13.828a4 4 0 01-5.656-5.656l3-3a4 4 0 015.656 0" />
+                </svg>
+                {shareBusy ? "生成中…" : "比較表URLをコピー"}
+              </button>
+            )}
+            {shareMsg && (
+              <span className={[
+                "text-xs",
+                shareIsError ? "text-red-600" : "text-emerald-700",
+              ].join(" ")}>
+                {shareMsg}
+              </span>
             )}
             {comparing && (
               <button
