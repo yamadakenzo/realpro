@@ -7,6 +7,7 @@ import AgentInfoForm from "@/components/AgentInfoForm";
 import CustomerInfoForm from "@/components/CustomerInfoForm";
 import PdfExportButton from "@/components/PdfExportButton";
 import PdfModal from "@/components/PdfModal";
+import PhotoCropModal from "@/components/PhotoCropModal";
 import HistoryTab from "@/components/HistoryTab";
 import CompareTab from "@/components/CompareTab";
 import LogoutButton from "@/components/LogoutButton";
@@ -92,6 +93,8 @@ export default function Home() {
   const [propertyPhotos, setPropertyPhotos] = useState<File[]>([]);
   const [propertyPhotoUrls, setPropertyPhotoUrls] = useState<string[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  // スクショ手動トリミングモーダル
+  const [cropModalOpen, setCropModalOpen] = useState(false);
 
   // 見積もり保存
   const [saveName, setSaveName] = useState("");
@@ -165,6 +168,7 @@ export default function Home() {
     setShareUrl("");
     setShareUrlError(null);
     setAiCommentError(null);
+    setCropModalOpen(false);
   };
 
   const handleAnalyze = async (files: File[]) => {
@@ -236,6 +240,12 @@ export default function Home() {
     URL.revokeObjectURL(propertyPhotoUrls[i]);
     setPropertyPhotos((prev) => prev.filter((_, idx) => idx !== i));
     setPropertyPhotoUrls((prev) => prev.filter((_, idx) => idx !== i));
+  };
+
+  // スクショから切り出した画像を既存の物件写真リストに追加（File と object URL の両方）
+  const handleCroppedPhotoAdd = (file: File, url: string) => {
+    setPropertyPhotos((prev) => [...prev, file]);
+    setPropertyPhotoUrls((prev) => [...prev, url]);
   };
 
   const handleCostsChange = (costs: CostItem[]) => {
@@ -702,7 +712,13 @@ export default function Home() {
                     新機能
                   </span>
                 </div>
-                <p className="text-xs text-[#7a9e82] mb-4">PDFに掲載（未添付時はPDFに表示されません）</p>
+                <p className="text-xs text-[#7a9e82] mb-3">PDFに掲載（未添付時はPDFに表示されません）</p>
+                <button
+                  onClick={() => setCropModalOpen(true)}
+                  className="mb-4 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border border-[#b8d898] text-[#2d5e3a] bg-[#f7faf4] hover:bg-[#eaf3de] transition-colors"
+                >
+                  📸 スクショから切り出す
+                </button>
                 <div className="flex flex-wrap gap-3">
                   {propertyPhotoUrls.map((url, i) => (
                     <div key={url} className="relative w-20 h-14 rounded-lg overflow-hidden border border-[#dce8d4]">
@@ -1166,6 +1182,13 @@ export default function Home() {
         onClose={() => setModalOpen(false)}
         onConfirm={handlePdfConfirm}
         onLineShare={handleSendLinePdf}
+      />
+
+      {/* ===== スクショ手動トリミングモーダル ===== */}
+      <PhotoCropModal
+        open={cropModalOpen}
+        onClose={() => setCropModalOpen(false)}
+        onAdd={handleCroppedPhotoAdd}
       />
 
       {/* ===== LINE共有方法選択モーダル ===== */}
