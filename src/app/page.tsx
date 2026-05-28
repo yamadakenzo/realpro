@@ -149,11 +149,30 @@ export default function Home() {
     window.print();
   }, [printFlag]);
 
+  // 物件依存の state を全てクリア（前物件のコメント／nearby／顧客情報／写真などが新物件に残らないように）
+  // handleAnalyze（新解析）と handleReset（全リセット）から共通利用
+  const clearPropertyState = () => {
+    setComment("");
+    setNearby(null);
+    setCustomerInfo(DEFAULT_CUSTOMER);
+    setSaveName("");
+    setSaved(false);
+    setHasPrinted(false);
+    setValidUntil(getDefaultValidUntil());
+    propertyPhotoUrls.forEach((u) => URL.revokeObjectURL(u));
+    setPropertyPhotos([]);
+    setPropertyPhotoUrls([]);
+    setShareUrl("");
+    setShareUrlError(null);
+    setAiCommentError(null);
+  };
+
   const handleAnalyze = async (files: File[]) => {
     setAnalyzing(true);
     setError(null);
     setResult(null);
-    setHasPrinted(false);
+    // 新物件の解析開始時点で前物件の依存state（コメント・周辺施設・顧客情報など）を初期化
+    clearPropertyState();
     try {
       const body = new FormData();
       files.forEach((f) => body.append("image", f));
@@ -199,19 +218,8 @@ export default function Home() {
   const handleReset = () => {
     setResult(null);
     setError(null);
-    setSaveName("");
-    setSaved(false);
-    setHasPrinted(false);
-    setValidUntil(getDefaultValidUntil());
-    setComment("");
-    setNearby(null);
-    setCustomerInfo(DEFAULT_CUSTOMER);
-    propertyPhotoUrls.forEach((u) => URL.revokeObjectURL(u));
-    setPropertyPhotos([]);
-    setPropertyPhotoUrls([]);
+    clearPropertyState();
     setUploaderKey((k) => k + 1);
-    setShareUrl("");
-    setShareUrlError(null);
   };
 
   const handlePhotoAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -358,22 +366,54 @@ export default function Home() {
     } catch {}
   };
 
+  // 同一物件かどうかを判定するキー（物件名+住所+部屋番号）。重複保存防止用
+  const makeSlug = (ext: AnalyzeResponse["extracted"]): string => {
+    const parts = [ext.propertyName?.trim(), ext.address?.trim(), ext.roomNumber?.trim()]
+      .filter((s): s is string => !!s && s.length > 0);
+    return parts.length > 0 ? parts.join("|") : "";
+  };
+
   const handleSave = () => {
     if (!result) return;
     const fallbackName = result.extracted.propertyName?.trim()
       || `見積もり ${new Date().toLocaleDateString("ja-JP")}`;
     const name = saveName.trim() || fallbackName;
-    const entry: SavedEstimate = {
-      id: Date.now().toString(),
-      name,
-      savedAt: new Date().toISOString(),
-      result,
-      agentInfo,
-      customerInfo: customerInfo.customerName ? customerInfo : undefined,
-      comment: comment.trim() || undefined,
-      nearby: nearby ?? undefined,
-    };
-    const updated = [entry, ...estimates];
+    const slug = makeSlug(result.extracted);
+    // 同一物件（slug一致、なければ名前一致）があれば上書き、なければ追加
+    const existingIdx = estimates.findIndex((e) => {
+      if (slug && e.slug) return e.slug === slug;
+      return e.name === name;
+    });
+    let updated: SavedEstimate[];
+    if (existingIdx >= 0) {
+      const existing = estimates[existingIdx];
+      const entry: SavedEstimate = {
+        id: existing.id,
+        name,
+        savedAt: new Date().toISOString(),
+        result,
+        agentInfo,
+        customerInfo: customerInfo.customerName ? customerInfo : undefined,
+        comment: comment.trim() || undefined,
+        nearby: nearby ?? undefined,
+        slug: slug || undefined,
+      };
+      updated = [...estimates];
+      updated[existingIdx] = entry;
+    } else {
+      const entry: SavedEstimate = {
+        id: Date.now().toString(),
+        name,
+        savedAt: new Date().toISOString(),
+        result,
+        agentInfo,
+        customerInfo: customerInfo.customerName ? customerInfo : undefined,
+        comment: comment.trim() || undefined,
+        nearby: nearby ?? undefined,
+        slug: slug || undefined,
+      };
+      updated = [entry, ...estimates];
+    }
     setEstimates(updated);
     persistEstimates(updated);
     setSaved(true);
@@ -382,6 +422,7 @@ export default function Home() {
 
   const handleAddToCompare = () => {
     if (!result) return;
+    // 保存（dedup付き）→ 比較タブへ。重複物件は上書きされるので二重登録されない
     handleSave();
     setActiveTab("compare");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -787,7 +828,7 @@ export default function Home() {
                     </svg>
                     {saved ? "✓ 保存済み" : "見積もりを保存"}
                   </button>
-                  {/* 比較表に追加 */}
+                  {/* 保存して比較表へ */}
                   <button
                     onClick={handleAddToCompare}
                     disabled={!result}
@@ -802,9 +843,12 @@ export default function Home() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                         d="M3 10h18M3 14h18M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
                     </svg>
-                    比較表に追加
+                    保存して比較表へ
                   </button>
                 </div>
+                <p className="mt-2 text-[11px] text-[#7a9e82]">
+                  ※「見積もりを保存」も「保存して比較表へ」も、同じ物件（物件名・住所・部屋番号が同じ）なら上書きされて重複しません。
+                </p>
 
                 {(shareUrl || shareUrlError) && (
                   <div className="mt-3">

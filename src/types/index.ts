@@ -88,4 +88,6 @@ export interface SavedEstimate {
   comment?: string;
   // 担当者コメントAI生成時に取得した周辺施設データを流用（二重課金回避）
   nearby?: NearbyResult;
+  // 同一物件の二重登録を防ぐためのキー（物件名|住所|部屋番号）。旧データには存在しないので optional
+  slug?: string;
 }
