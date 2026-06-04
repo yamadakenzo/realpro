@@ -13,6 +13,12 @@ export interface ExtractedProperty {
   area: number;
   fireInsuranceMonthly: number;
   guaranteeFeeMonthly: number;
+  // 火災保険料が「2年契約 18,000円」のように総額・一括で書いてある場合の金額（円）。月額しか無い／不明なら0。古い保存データには無いので optional
+  fireInsuranceTotal?: number;
+  // マイソクの「諸費用 / 初期費用」欄に書いてあって、定番項目（敷金・礼金・前家賃・仲介手数料・保証会社・火災保険・鍵交換）に当てはまらない費用（例：修理分担金）
+  otherInitialCosts?: { label: string; amount: number }[];
+  // 家賃・管理費・共益費・月額保証料以外で毎月かかる費用（例：CATV費用・水道料金・駆け付けサービス）
+  otherMonthlyCosts?: { label: string; amount: number }[];
   // 2026-05-28 追加（比較表の多面化用）。古い保存データには存在しないので optional
   buildingAge?: string;
   nearestStation?: string;

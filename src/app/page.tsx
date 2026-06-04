@@ -34,7 +34,7 @@ const FACILITY_OPTIONS = [
 const MISSING_CHECK_ITEMS: { id: string; label: string; category: string; note: string }[] = [
   { id: "deposit",        label: "敷金",           category: "家賃関連", note: "退去時に精算" },
   { id: "key_money",      label: "礼金",           category: "家賃関連", note: "返還なし" },
-  { id: "agency_fee",     label: "仲介手数料",     category: "仲介費用", note: "家賃1ヶ月分＋消費税10%" },
+  { id: "agency_fee",     label: "仲介手数料",     category: "仲介費用", note: "賃料1ヶ月分＋消費税10%（管理費は含まない）" },
   { id: "guarantee_fee",  label: "保証会社利用料", category: "保証・保険", note: "家賃0.5ヶ月分（目安）" },
   { id: "fire_insurance", label: "火災保険料",     category: "保証・保険", note: "2年契約の目安" },
   { id: "key_exchange",   label: "鍵交換費用",     category: "入居費用", note: "税込" },
@@ -266,7 +266,8 @@ export default function Home() {
       extracted = { ...extracted, rent: newRent, managementFee: newMgmt };
       costs = costs.map((c) => {
         if (c.id === "rent_first")    return { ...c, amount: newBase };
-        if (c.id === "agency_fee")    return { ...c, amount: Math.round(newBase * 1.1) };
+        // 仲介手数料は賃料のみ（管理費を含まない）× 1.1 で再計算
+        if (c.id === "agency_fee")    return { ...c, amount: Math.round(newRent * 1.1) };
         if (c.id === "guarantee_fee") return { ...c, amount: Math.round(newBase * 0.5) };
         return c;
       });

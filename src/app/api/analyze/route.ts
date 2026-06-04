@@ -31,16 +31,23 @@ async function extractPropertyData(
 数値は円単位の整数で返してください（万円表記なら10000倍）。
 不明な項目は数値なら0、文字列なら空文字、配列なら空配列にしてください。
 
+★最重要ルール（必ず守る）★
+1. 画像に書いてある金額だけを、書いてある通りの数字で返す。推測・概算・目安で数字を作らない（金額の計算もしない）。
+2. 画像に載っていない費用項目は絶対に作らない（存在しない費用を勝手に追加しない）。
+3. 「賃料（家賃）」と「管理費・共益費」は必ず別々の数値で返す。一緒にしない（後で仲介手数料の計算に使うため）。
+4. 「諸費用」「ランニングコスト」「その他」「初期費用」などの欄に書いてある費用は、1つも取りこぼさず全部拾う。定番項目に当てはまらないものは otherInitialCosts / otherMonthlyCosts に入れる。
+
 {
   "propertyName": "物件名",
   "address": "住所",
-  "rent": 家賃（円）,
-  "managementFee": 管理費（円）,
+  "rent": 賃料・家賃（円）※「賃料」「家賃」の金額のみ。管理費・共益費は絶対にここに含めない,
+  "managementFee": 管理費・共益費（円）※「管理費」「共益費」の金額。賃料とは必ず分けて返す。両方あれば合算。なければ0,
   "deposit": 敷金（円）,
   "keyMoney": 礼金（円）,
   "floorPlan": "間取り（例: 1LDK）",
   "area": 面積（m²の数値のみ）,
-  "fireInsuranceMonthly": 火災保険の月額（円）※月払いの場合のみ、一括払いや不明なら0,
+  "fireInsuranceTotal": 火災保険料の総額（円）※「2年で18,000円」のように一括・総額で書いてあればその金額。月額しか無い・書いていなければ0,
+  "fireInsuranceMonthly": 火災保険の月額（円）※月払い金額が書いてある場合のみ。総額しか無い・不明なら0,
   "guaranteeFeeMonthly": 月額保証料（円）※毎月請求される保証料のみ、初回一括なら0,
   "addressRomaji": "住所のローマ字・英語表記（例: 2-113 Shinkaichō, Tokoname-shi, Aichi-ken）※番地はハイフン区切り・丁目は数字のみ・市区町村にサフィックス付与",
   "roomNumber": "部屋番号（例: 101号室）※画像に明記されていれば抽出、なければ空文字",
@@ -50,10 +57,18 @@ async function extractPropertyData(
   "facilities": ["設備の配列。以下から該当するものだけ含める。なければ空配列",
                  "オートロック", "宅配BOX", "バストイレ別", "追い焚き", "独立洗面台",
                  "エアコン", "室内洗濯機置場", "モニター付インターホン", "2階以上",
-                 "南向き", "駐車場あり", "ペット可", "楽器可"]
+                 "南向き", "駐車場あり", "ペット可", "楽器可"],
+  "otherInitialCosts": [ { "label": "費用名（書いてある通り）", "amount": 金額（円） } ],
+  "otherMonthlyCosts":  [ { "label": "費用名（書いてある通り）", "amount": 金額（円） } ]
 }
 
 facilitiesの注意：上のリストはあくまで候補です。画像から確認できたものだけを配列に含めてください。確認できないものは絶対に含めないでください。リストに無い設備も画像にあれば自由に追加して構いません。
+
+otherInitialCosts の注意：「初期費用」欄に書いてあって、敷金・礼金・前家賃・仲介手数料・保証会社利用料・火災保険料・鍵交換 のどれにも当てはまらない費用を全て入れる（例：修理分担金、書類作成料、保険事務手数料 など）。当てはまる定番費用はここに入れず、上の決まった項目に入れる。何も無ければ空配列。
+
+otherMonthlyCosts の注意：賃料・管理費・共益費・月額保証料 以外で毎月かかる費用を全て入れる（例：CATV費用、水道料金、駆け付けサービス〔アプリコール24 等〕、町内会費）。何も無ければ空配列。
+
+どちらの配列も、画像に金額が書いてある費用だけを入れること。書いていない費用を想像で足さない。
 
 JSONのみ返してください。`,
           },
@@ -70,6 +85,20 @@ JSONのみ返してください。`,
   const facilities = Array.isArray(raw.facilities)
     ? raw.facilities.filter((f: unknown): f is string => typeof f === "string" && f.trim().length > 0)
     : [];
+
+  // 画像に書いてあった「その他費用」を、ラベルあり・金額>0 のものだけに整える
+  const sanitizeExtraCosts = (
+    arr: unknown
+  ): { label: string; amount: number }[] => {
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .map((c) => ({
+        label: typeof c?.label === "string" ? c.label.trim() : "",
+        amount: Number(c?.amount) || 0,
+      }))
+      .filter((c) => c.label.length > 0 && c.amount > 0);
+  };
+
   return {
     propertyName: raw.propertyName ?? "",
     address: raw.address ?? "",
@@ -80,7 +109,10 @@ JSONのみ返してください。`,
     floorPlan: raw.floorPlan ?? "",
     area: Number(raw.area) || 0,
     fireInsuranceMonthly: Number(raw.fireInsuranceMonthly) || 0,
+    fireInsuranceTotal: Number(raw.fireInsuranceTotal) || 0,
     guaranteeFeeMonthly: Number(raw.guaranteeFeeMonthly) || 0,
+    otherInitialCosts: sanitizeExtraCosts(raw.otherInitialCosts),
+    otherMonthlyCosts: sanitizeExtraCosts(raw.otherMonthlyCosts),
     addressRomaji: raw.addressRomaji ?? "",
     roomNumber: raw.roomNumber ?? "",
     buildingAge: raw.buildingAge ?? "",
@@ -92,18 +124,29 @@ JSONのみ返してください。`,
 }
 
 // Stage 2-a: 初期費用を固定ルールで計算
+// 大方針：金額の計算（掛け算・足し算・ヶ月→金額の変換）はすべてここコード側で確定的に行う。
+//        AIは「画像に書いてある数字」を渡すだけで、計算・推測はさせない。
 function calculateInitialCosts(prop: ExtractedProperty): CostItem[] {
+  // 仲介手数料は「賃料のみ（管理費・共益費を除く）× 1.1」で計算する
+  const agencyFee = Math.round(prop.rent * 1.1);
+  // 前家賃・保証会社初回は従来どおり「総賃料（賃料＋管理費）」ベース
   const monthlyBase = prop.rent + prop.managementFee;
 
-  // 火災保険：月額が読み取れれば×24、なければ固定20,000円
-  const fireInsurance =
-    prop.fireInsuranceMonthly > 0 ? prop.fireInsuranceMonthly * 24 : 20000;
-  const fireNote =
-    prop.fireInsuranceMonthly > 0
-      ? `月額 ${prop.fireInsuranceMonthly.toLocaleString("ja-JP")}円 × 24ヶ月`
-      : "2年契約の目安（月額不明）";
+  // 火災保険：①総額が書いてあればその額をそのまま使う ②月額が書いてあれば×24 ③どちらも無ければ目安20,000円
+  let fireInsurance: number;
+  let fireNote: string;
+  if (prop.fireInsuranceTotal && prop.fireInsuranceTotal > 0) {
+    fireInsurance = prop.fireInsuranceTotal;
+    fireNote = "マイソク記載の契約金額";
+  } else if (prop.fireInsuranceMonthly > 0) {
+    fireInsurance = prop.fireInsuranceMonthly * 24;
+    fireNote = `月額 ${prop.fireInsuranceMonthly.toLocaleString("ja-JP")}円 × 24ヶ月`;
+  } else {
+    fireInsurance = 20000;
+    fireNote = "2年契約の目安（記載なし）";
+  }
 
-  return [
+  const items: CostItem[] = [
     {
       id: "rent_first",
       category: "家賃関連",
@@ -132,8 +175,8 @@ function calculateInitialCosts(prop: ExtractedProperty): CostItem[] {
       id: "agency_fee",
       category: "仲介費用",
       label: "仲介手数料",
-      amount: Math.round(monthlyBase * 1.1),
-      note: "家賃1ヶ月分＋消費税10%",
+      amount: agencyFee,
+      note: "賃料1ヶ月分＋消費税10%（管理費は含まない）",
       editable: true,
     },
     {
@@ -160,15 +203,22 @@ function calculateInitialCosts(prop: ExtractedProperty): CostItem[] {
       note: "税込",
       editable: true,
     },
-    {
-      id: "cleaning",
-      category: "入居費用",
-      label: "室内消毒・除菌",
-      amount: 16500,
-      note: "任意（要確認）",
-      editable: true,
-    },
   ];
+
+  // マイソクに書いてあった「その他の初期費用」（例：修理分担金）を追加。
+  // id を custom_ で始めると CostTable が「ユーザー追加行」として扱い、ラベルも編集可になる。
+  (prop.otherInitialCosts ?? []).forEach((c, i) => {
+    items.push({
+      id: `custom_other_init_${i}`,
+      category: "その他費用",
+      label: c.label,
+      amount: c.amount,
+      note: "マイソク記載",
+      editable: true,
+    });
+  });
+
+  return items;
 }
 
 // Stage 2-b: 月額費用を計算（家賃・管理費・月額保証料は常に3行返す。値がなければ0）
@@ -178,6 +228,12 @@ function calculateMonthlyCosts(prop: ExtractedProperty): MonthlyItem[] {
     { id: "monthly_mgmt",      label: "管理費",     amount: prop.managementFee,       editable: true },
     { id: "monthly_guarantee", label: "月額保証料", amount: prop.guaranteeFeeMonthly, editable: true },
   ];
+
+  // マイソクに書いてあった「その他の月額費用」（例：CATV・水道料金・駆け付けサービス）を合計の前に追加。
+  // id を monthly_custom_ で始めると CostTable が「ユーザー追加行」として扱い、ラベルも編集可になる。
+  (prop.otherMonthlyCosts ?? []).forEach((c, i) => {
+    items.push({ id: `monthly_custom_other_${i}`, label: c.label, amount: c.amount, editable: true });
+  });
 
   const total = items.reduce((s, i) => s + i.amount, 0);
   items.push({ id: "monthly_total", label: "月額合計", amount: total, editable: false });
