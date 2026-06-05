@@ -25,6 +25,9 @@ export interface ExtractedProperty {
   stationWalkMinutes?: number;
   facilities?: string[];
   recommendPoint?: string;
+  // 2026-06-06 追加（第2弾）。入居者の金銭メリット・強いアピールになる特徴で、マイソクに明記されているものだけ
+  // 例：インターネット無料 / 敷金なし / 礼金なし / フリーレント1ヶ月 / 更新料なし。旧データには無いので optional
+  salesPoints?: string[];
 }
 
 // generate-comment APIが返す周辺施設データ（保存時に流用して二重課金回避）

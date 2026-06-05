@@ -257,6 +257,27 @@ export default function CostTable({
         </div>
       </div>
 
+      {/* ===== セールスポイント（金銭メリット・強い特徴。画面とPDFで目立たせる） ===== */}
+      {(extracted.salesPoints?.length ?? 0) > 0 && (
+        <div className="px-6 py-4 border-b border-[#dce8d4] bg-[#f3f9ec]">
+          <h3 className="text-xs font-bold text-[#2d5e3a] mb-2">
+            ✨ {pdfLang === "ja"
+              ? "セールスポイント"
+              : `セールスポイント / ${T[pdfLang]?.salesPoints ?? "Selling Points"}`}
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {extracted.salesPoints!.map((sp) => (
+              <span
+                key={sp}
+                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-[#2d5e3a] text-white"
+              >
+                {sp}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ===== 初期費用テーブル ===== */}
       <div className="px-6 pt-5 pb-2">
         <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">

@@ -61,6 +61,11 @@ function formatFacilities(entry: CompareEntry): string {
   return list.length > 0 ? list.join("、") : "—";
 }
 
+function formatSalesPoints(entry: CompareEntry): string {
+  const list = entry.result.extracted.salesPoints ?? [];
+  return list.length > 0 ? list.join("、") : "—";
+}
+
 function formatRecommend(entry: CompareEntry): string {
   return (entry.result.extracted.recommendPoint ?? "").trim() || "—";
 }
@@ -176,6 +181,8 @@ export default function CompareView({
                   values={entries.map((e) => e.result.extracted.buildingAge || "—")} isText />
                 <Row label={tr(lang, "nearestStation", "最寄り駅")}
                   values={entries.map((e) => formatStation(e, lang))} isText />
+                <Row label={tr(lang, "salesPoints", "セールスポイント")}
+                  values={entries.map(formatSalesPoints)} isText wrap />
                 <Row label={tr(lang, "facilities", "設備")}
                   values={entries.map(formatFacilities)} isText wrap />
                 <Row label={tr(lang, "recommendPoint", "おすすめポイント")}

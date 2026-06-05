@@ -53,6 +53,11 @@ function formatFacilities(est: SavedEstimate): string {
   return list.length > 0 ? list.join("、") : "—";
 }
 
+function formatSalesPoints(est: SavedEstimate): string {
+  const list = est.result.extracted.salesPoints ?? [];
+  return list.length > 0 ? list.join("、") : "—";
+}
+
 function formatRecommend(est: SavedEstimate): string {
   return (est.result.extracted.recommendPoint ?? "").trim() || "—";
 }
@@ -270,6 +275,7 @@ export default function CompareTab({ estimates }: Props) {
                 <CompRow label="面積" values={selectedEstimates.map((e) => e.result.extracted.area > 0 ? `${e.result.extracted.area} m²` : "—")} isText />
                 <CompRow label="築年数" values={selectedEstimates.map((e) => e.result.extracted.buildingAge || "—")} isText />
                 <CompRow label="最寄り駅" values={selectedEstimates.map(formatStation)} isText />
+                <CompRow label="セールスポイント" values={selectedEstimates.map(formatSalesPoints)} isText wrap />
                 <CompRow label="設備" values={selectedEstimates.map(formatFacilities)} isText wrap />
                 <CompRow label="おすすめポイント" values={selectedEstimates.map(formatRecommend)} isText wrap />
 

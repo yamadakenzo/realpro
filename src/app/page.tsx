@@ -80,6 +80,9 @@ export default function Home() {
   const [validUntil, setValidUntil] = useState(getDefaultValidUntil);
   const [comment, setComment] = useState("");
 
+  // セールスポイントの手動追加入力欄
+  const [salesPointInput, setSalesPointInput] = useState("");
+
   // 担当者コメント AI生成
   const [aiCommentLang, setAiCommentLang] = useState<Language>("en");
   const [aiCommentLoading, setAiCommentLoading] = useState(false);
@@ -301,6 +304,20 @@ export default function Home() {
     const current = result.extracted.facilities ?? [];
     const next = current.includes(label) ? current.filter((f) => f !== label) : [...current, label];
     updateExtractedField("facilities", next);
+  };
+
+  const addSalesPoint = (label: string) => {
+    const v = label.trim();
+    if (!result || !v) return;
+    const current = result.extracted.salesPoints ?? [];
+    if (current.includes(v)) return;
+    updateExtractedField("salesPoints", [...current, v]);
+  };
+
+  const removeSalesPoint = (label: string) => {
+    if (!result) return;
+    const current = result.extracted.salesPoints ?? [];
+    updateExtractedField("salesPoints", current.filter((s) => s !== label));
   };
 
   const handlePdfConfirm = (lang: Language, glossary: boolean) => {
@@ -1021,6 +1038,62 @@ export default function Home() {
                           className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                         />
                       </label>
+                    </div>
+
+                    {/* セールスポイント（金銭メリット・強い特徴。見積もり・PDF・比較表で目立たせる） */}
+                    <div>
+                      <span className="block text-xs font-medium text-[#2d5e3a] mb-2">
+                        ✨ セールスポイント（インターネット無料など・見積もりとPDFで目立ちます）
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {(result.extracted.salesPoints ?? []).map((label) => (
+                          <span
+                            key={label}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#eaf3de] border border-[#b8d898] text-[#2d5e3a]"
+                          >
+                            {label}
+                            <button
+                              type="button"
+                              onClick={() => removeSalesPoint(label)}
+                              className="text-[#2d5e3a]/60 hover:text-[#2d5e3a]"
+                              aria-label="削除"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                        {(result.extracted.salesPoints ?? []).length === 0 && (
+                          <span className="text-xs text-slate-400">
+                            マイソクに「インターネット無料」などがあれば自動で入ります。手動でも追加できます。
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          type="text"
+                          value={salesPointInput}
+                          onChange={(e) => setSalesPointInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addSalesPoint(salesPointInput);
+                              setSalesPointInput("");
+                            }
+                          }}
+                          placeholder="例：インターネット無料 / 敷金礼金なし"
+                          className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8d898] focus:border-transparent"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            addSalesPoint(salesPointInput);
+                            setSalesPointInput("");
+                          }}
+                          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-[#2d5e3a] text-white hover:bg-[#244c2f] transition-colors shrink-0"
+                        >
+                          追加
+                        </button>
+                      </div>
                     </div>
 
                     {/* 設備 */}

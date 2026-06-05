@@ -104,6 +104,23 @@ export default async function EstimateViewPage({
           <p className="text-sm text-[#1a2e20]">{customerInfo.customerName} 様</p>
         )}
 
+        {/* セールスポイント（金銭メリット・強い特徴） */}
+        {(prop.salesPoints?.length ?? 0) > 0 && (
+          <section className="bg-[#f3f9ec] rounded-xl border border-[#b8d898] p-4">
+            <h2 className="text-sm font-bold text-[#2d5e3a] mb-2">✨ セールスポイント</h2>
+            <div className="flex flex-wrap gap-2">
+              {prop.salesPoints!.map((sp) => (
+                <span
+                  key={sp}
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-[#2d5e3a] text-white"
+                >
+                  {sp}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* 物件写真ギャラリー */}
         {photos.length > 0 && (
           <section className="bg-white rounded-xl border border-[#dce8d4] overflow-hidden">

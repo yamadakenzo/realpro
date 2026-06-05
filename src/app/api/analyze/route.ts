@@ -58,11 +58,14 @@ async function extractPropertyData(
                  "オートロック", "宅配BOX", "バストイレ別", "追い焚き", "独立洗面台",
                  "エアコン", "室内洗濯機置場", "モニター付インターホン", "2階以上",
                  "南向き", "駐車場あり", "ペット可", "楽器可"],
+  "salesPoints": ["入居者の金銭的メリット・強いアピールになる特徴の配列。マイソクに明記されているものだけ。なければ空配列"],
   "otherInitialCosts": [ { "label": "費用名（書いてある通り）", "amount": 金額（円） } ],
   "otherMonthlyCosts":  [ { "label": "費用名（書いてある通り）", "amount": 金額（円） } ]
 }
 
-facilitiesの注意：上のリストはあくまで候補です。画像から確認できたものだけを配列に含めてください。確認できないものは絶対に含めないでください。リストに無い設備も画像にあれば自由に追加して構いません。
+facilitiesの注意：上のリストはあくまで候補です。画像から確認できたものだけを配列に含めてください。確認できないものは絶対に含めないでください。リストに無い設備も画像にあれば自由に追加して構いません。ただし「インターネット無料」などの金銭メリットは facilities ではなく salesPoints に入れること。
+
+salesPoints の注意：入居者の毎月の支出が減る・契約時の負担が減るなど、強いアピールになる特徴を、マイソクに書いてある言葉で入れる。例：「インターネット無料」（ネット使用料不要・ネット込み・無料インターネット 等の記載があればこれ）、「敷金なし」「礼金なし」「敷金礼金なし」「フリーレント◯ヶ月」「更新料なし」「管理費無料」など。プロバイダ名が併記されていれば「インターネット無料（◯◯）」のように添えてよい。マイソクに明記されていない特徴は絶対に作らない（書いていない＝入れない）。何も無ければ空配列。
 
 otherInitialCosts の注意：「初期費用」欄に書いてあって、敷金・礼金・前家賃・仲介手数料・保証会社利用料・火災保険料・鍵交換 のどれにも当てはまらない費用を全て入れる（例：修理分担金、書類作成料、保険事務手数料 など）。当てはまる定番費用はここに入れず、上の決まった項目に入れる。何も無ければ空配列。
 
@@ -82,9 +85,12 @@ JSONのみ返してください。`,
   if (!match) throw new Error("物件情報の抽出に失敗しました");
 
   const raw = JSON.parse(match[0]);
-  const facilities = Array.isArray(raw.facilities)
-    ? raw.facilities.filter((f: unknown): f is string => typeof f === "string" && f.trim().length > 0)
-    : [];
+  const toStringArray = (v: unknown): string[] =>
+    Array.isArray(v)
+      ? v.filter((f: unknown): f is string => typeof f === "string" && f.trim().length > 0).map((f) => f.trim())
+      : [];
+  const facilities = toStringArray(raw.facilities);
+  const salesPoints = toStringArray(raw.salesPoints);
 
   // 画像に書いてあった「その他費用」を、ラベルあり・金額>0 のものだけに整える
   const sanitizeExtraCosts = (
@@ -119,6 +125,7 @@ JSONのみ返してください。`,
     nearestStation: raw.nearestStation ?? "",
     stationWalkMinutes: Number(raw.stationWalkMinutes) || 0,
     facilities,
+    salesPoints,
     recommendPoint: "",
   };
 }
