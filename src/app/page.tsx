@@ -126,6 +126,8 @@ export default function Home() {
   const [shareUrl, setShareUrl] = useState("");
   const [shareUrlCopied, setShareUrlCopied] = useState(false);
   const [shareUrlError, setShareUrlError] = useState<string | null>(null);
+  // 共有ページ（/estimate）の表示言語。ja のときは日本語のみ、それ以外は日本語＋その言語の併記
+  const [shareLang, setShareLang] = useState<Language>("ja");
 
   // 初期ロード
   useEffect(() => {
@@ -589,9 +591,11 @@ export default function Home() {
       if (!res.ok || !data.url) {
         throw new Error(data.error ?? "URLの生成に失敗しました");
       }
-      setShareUrl(data.url);
+      // 顧客言語を選んでいれば共有URLに ?lang= を付ける（ja は付けない＝日本語のみ）
+      const finalUrl = shareLang !== "ja" ? `${data.url}?lang=${shareLang}` : data.url;
+      setShareUrl(finalUrl);
       try {
-        await navigator.clipboard.writeText(data.url);
+        await navigator.clipboard.writeText(finalUrl);
         setShareUrlCopied(true);
         setTimeout(() => setShareUrlCopied(false), 2000);
       } catch {
@@ -811,23 +815,38 @@ export default function Home() {
                     </span>
                     LINEで共有
                   </button>
-                  {/* URLで共有 */}
-                  <button
-                    onClick={handleShareUrl}
-                    disabled={!result || shareUrlLoading}
-                    className={[
-                      "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors",
-                      result && !shareUrlLoading
-                        ? "bg-[#4a7f86] text-white hover:bg-[#3a6970]"
-                        : "bg-slate-100 text-slate-400 cursor-not-allowed",
-                    ].join(" ")}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M13.828 10.172a4 4 0 015.656 0l1.414 1.414a4 4 0 010 5.656l-2.829 2.829a4 4 0 01-5.656 0l-1.414-1.414M10.172 13.828a4 4 0 01-5.656 0L3.1 12.414a4 4 0 010-5.656l2.829-2.829a4 4 0 015.656 0l1.414 1.414" />
-                    </svg>
-                    {shareUrlLoading ? "生成中..." : "URLで共有"}
-                  </button>
+                  {/* URLで共有（顧客の言語を選べる。日本語のみなら「日本語」のまま） */}
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={shareLang}
+                      onChange={(e) => setShareLang(e.target.value as Language)}
+                      disabled={!result}
+                      title="共有ページの言語（日本語＋選択言語の併記）"
+                      className="px-2 py-2 rounded-xl text-sm border border-[#dce8d4] bg-white text-[#1a2e20] focus:outline-none focus:ring-2 focus:ring-[#b8d898] disabled:bg-slate-100 disabled:text-slate-400"
+                    >
+                      {LANGS.map((l) => (
+                        <option key={l.code} value={l.code}>
+                          {l.flag} {l.code === "ja" ? "日本語のみ" : l.sub}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleShareUrl}
+                      disabled={!result || shareUrlLoading}
+                      className={[
+                        "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors",
+                        result && !shareUrlLoading
+                          ? "bg-[#4a7f86] text-white hover:bg-[#3a6970]"
+                          : "bg-slate-100 text-slate-400 cursor-not-allowed",
+                      ].join(" ")}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M13.828 10.172a4 4 0 015.656 0l1.414 1.414a4 4 0 010 5.656l-2.829 2.829a4 4 0 01-5.656 0l-1.414-1.414M10.172 13.828a4 4 0 01-5.656 0L3.1 12.414a4 4 0 010-5.656l2.829-2.829a4 4 0 015.656 0l1.414 1.414" />
+                      </svg>
+                      {shareUrlLoading ? "生成中..." : "URLで共有"}
+                    </button>
+                  </div>
                   {/* PDFを開く */}
                   <button
                     onClick={openPreviewLang}

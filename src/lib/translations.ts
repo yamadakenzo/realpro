@@ -299,6 +299,85 @@ export const SECTION: Record<string, ML> = {
     ko: "담당자 코멘트", vi: "Ghi chú của nhân viên", ne: "एजेन्टको टिप्पणी",
     es: "Nota del agente", pt: "Nota do responsável", id: "Catatan Agen",
   },
+  propertyName: {
+    ja: "物件名", en: "Property", zh: "房源名称", "zh-tw": "房源名稱",
+    ko: "건물명", vi: "Tên tòa nhà", ne: "भवनको नाम",
+    es: "Inmueble", pt: "Imóvel", id: "Nama Properti",
+  },
+  address: {
+    ja: "住所", en: "Address", zh: "地址", "zh-tw": "地址",
+    ko: "주소", vi: "Địa chỉ", ne: "ठेगाना",
+    es: "Dirección", pt: "Endereço", id: "Alamat",
+  },
+  propertyPhotos: {
+    ja: "物件写真", en: "Photos", zh: "房源照片", "zh-tw": "房源照片",
+    ko: "사진", vi: "Hình ảnh", ne: "तस्बिर",
+    es: "Fotos", pt: "Fotos", id: "Foto",
+  },
+};
+
+// ─── 備考（初期費用の定番ノート）の翻訳 ─────────────────────
+// 顧客向け共有ページ（/estimate）で「日本語（訳）」併記するための辞書。
+// キーは analyze が付ける既定の備考テキスト。担当者が書き換えた備考やここに無い文言は
+// 翻訳せずそのまま表示する（誤訳・誤上書きを避ける）。
+export const COST_NOTE_LABELS: Record<string, ML> = {
+  "入居月の家賃・管理費": {
+    ja: "入居月の家賃・管理費", en: "Rent & management fee for the move-in month",
+    zh: "入住当月的房租及管理费", "zh-tw": "入住當月的房租及管理費",
+    ko: "입주월의 임차료·관리비", vi: "Tiền thuê & phí quản lý tháng dọn vào",
+    ne: "सर्ने महिनाको भाडा र व्यवस्थापन शुल्क", es: "Renta y gastos del mes de entrada",
+    pt: "Aluguel e taxa de administração do mês de entrada", id: "Sewa & biaya pengelolaan bulan masuk",
+  },
+  "退去時に精算": {
+    ja: "退去時に精算", en: "Settled upon move-out",
+    zh: "退房时结算", "zh-tw": "退房時結算",
+    ko: "퇴거 시 정산", vi: "Quyết toán khi dọn ra",
+    ne: "निस्कँदा हिसाब मिलाइन्छ", es: "Se liquida al salir",
+    pt: "Acertado na saída", id: "Diselesaikan saat pindah keluar",
+  },
+  "返還なし": {
+    ja: "返還なし", en: "Non-refundable",
+    zh: "不予退还", "zh-tw": "不予退還",
+    ko: "반환 없음", vi: "Không hoàn lại",
+    ne: "फिर्ता हुँदैन", es: "No reembolsable",
+    pt: "Não reembolsável", id: "Tidak dapat dikembalikan",
+  },
+  "賃料1ヶ月分＋消費税10%（管理費は含まない）": {
+    ja: "賃料1ヶ月分＋消費税10%（管理費は含まない）",
+    en: "1 month's rent + 10% tax (excl. management fee)",
+    zh: "1个月房租＋10%消费税（不含管理费）", "zh-tw": "1個月房租＋10%消費稅（不含管理費）",
+    ko: "임차료 1개월분＋소비세 10%（관리비 제외）", vi: "1 tháng tiền thuê + 10% thuế (không gồm phí quản lý)",
+    ne: "१ महिनाको भाडा + १०% कर (व्यवस्थापन शुल्क बाहेक)", es: "1 mes de renta + 10% IVA (sin gastos de comunidad)",
+    pt: "1 mês de aluguel + 10% imposto (sem taxa de administração)", id: "Sewa 1 bulan + pajak 10% (tanpa biaya pengelolaan)",
+  },
+  "家賃0.5ヶ月分（目安）": {
+    ja: "家賃0.5ヶ月分（目安）", en: "Approx. 0.5 month's rent",
+    zh: "约0.5个月房租（参考）", "zh-tw": "約0.5個月房租（參考）",
+    ko: "임차료 0.5개월분（대략）", vi: "Khoảng 0,5 tháng tiền thuê",
+    ne: "लगभग ०.५ महिनाको भाडा", es: "Aprox. 0,5 meses de renta",
+    pt: "Aprox. 0,5 mês de aluguel", id: "Sekitar 0,5 bulan sewa",
+  },
+  "2年契約": {
+    ja: "2年契約", en: "2-year contract",
+    zh: "2年合同", "zh-tw": "2年合約",
+    ko: "2년 계약", vi: "Hợp đồng 2 năm",
+    ne: "२ वर्षको सम्झौता", es: "Contrato de 2 años",
+    pt: "Contrato de 2 anos", id: "Kontrak 2 tahun",
+  },
+  "2年契約の目安（記載なし）": {
+    ja: "2年契約の目安（記載なし）", en: "Estimate for a 2-year contract",
+    zh: "2年合同参考（无记载）", "zh-tw": "2年合約參考（無記載）",
+    ko: "2년 계약 기준（기재 없음）", vi: "Ước tính cho hợp đồng 2 năm",
+    ne: "२ वर्षको सम्झौता अनुमान", es: "Estimación para contrato de 2 años",
+    pt: "Estimativa para contrato de 2 anos", id: "Perkiraan untuk kontrak 2 tahun",
+  },
+  "税込": {
+    ja: "税込", en: "Tax included",
+    zh: "含税", "zh-tw": "含稅",
+    ko: "세금 포함", vi: "Đã gồm thuế",
+    ne: "कर सहित", es: "IVA incluido",
+    pt: "Impostos incl.", id: "Termasuk pajak",
+  },
 };
 
 // ─── 用語解説 ────────────────────────────────────────────

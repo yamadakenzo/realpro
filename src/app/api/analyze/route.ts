@@ -130,6 +130,20 @@ JSONのみ返してください。`,
   };
 }
 
+// 費目の表記ゆれ（鍵交換／カギ交換、漢字↔カタカナ、費用/代/料 など）を吸収して
+// 「同じ費用かどうか」を判定するための正規化キーを作る。二重計上の防止に使う。
+// ※ 慎重側に倒す：本当に同じ費目のときだけ一致するよう、末尾の費目語は1語だけ落とす。
+function normalizeCostKey(label: string): string {
+  let s = (label || "").normalize("NFKC");           // 全角英数→半角など
+  s = s.replace(/[（(][^）)]*[)）]/g, "");             // カッコ書きを除去
+  s = s.replace(/[\s　・\/／,，、。.]/g, "");        // 区切り・空白を除去
+  s = s.replace(/[ァ-ヶ]/g, (c) =>            // カタカナ→ひらがな
+    String.fromCharCode(c.charCodeAt(0) - 0x60));
+  s = s.replace(/鍵/g, "かぎ");                        // よくある漢字の読み置換（最小限）
+  s = s.replace(/(費用|料金|代金|手数料|料|代|費|金)$/, ""); // 末尾の費目語を1語だけ除去
+  return s;
+}
+
 // Stage 2-a: 初期費用を固定ルールで計算
 // 大方針：金額の計算（掛け算・足し算・ヶ月→金額の変換）はすべてここコード側で確定的に行う。
 //        AIは「画像に書いてある数字」を渡すだけで、計算・推測はさせない。
@@ -144,7 +158,7 @@ function calculateInitialCosts(prop: ExtractedProperty): CostItem[] {
   let fireNote: string;
   if (prop.fireInsuranceTotal && prop.fireInsuranceTotal > 0) {
     fireInsurance = prop.fireInsuranceTotal;
-    fireNote = "マイソク記載の契約金額";
+    fireNote = "2年契約";
   } else if (prop.fireInsuranceMonthly > 0) {
     fireInsurance = prop.fireInsuranceMonthly * 24;
     fireNote = `月額 ${prop.fireInsuranceMonthly.toLocaleString("ja-JP")}円 × 24ヶ月`;
@@ -212,15 +226,24 @@ function calculateInitialCosts(prop: ExtractedProperty): CostItem[] {
     },
   ];
 
-  // マイソクに書いてあった「その他の初期費用」（例：修理分担金）を追加。
+  // 画像から拾った「その他の初期費用」（例：修理分担金）を追加。
+  // ただし鍵交換など定番項目と表記ゆれで二重計上しないよう、正規化キーで重複を排除する。
+  // 同じ費目が既にあれば追加せず、画像に書いてある金額を採用して1つにまとめる（合計が狂わない）。
   // id を custom_ で始めると CostTable が「ユーザー追加行」として扱い、ラベルも編集可になる。
   (prop.otherInitialCosts ?? []).forEach((c, i) => {
+    const key = normalizeCostKey(c.label);
+    const dupIdx = key ? items.findIndex((it) => normalizeCostKey(it.label) === key) : -1;
+    if (dupIdx >= 0) {
+      // 既存の同一費目に統合（書いてある金額を優先）。備考は顧客向けに残さない
+      items[dupIdx] = { ...items[dupIdx], amount: c.amount, note: items[dupIdx].note };
+      return;
+    }
     items.push({
       id: `custom_other_init_${i}`,
       category: "その他費用",
       label: c.label,
       amount: c.amount,
-      note: "マイソク記載",
+      note: "", // 「マイソク記載」など社内用語は顧客に見せない（備考は空）
       editable: true,
     });
   });
@@ -236,9 +259,16 @@ function calculateMonthlyCosts(prop: ExtractedProperty): MonthlyItem[] {
     { id: "monthly_guarantee", label: "月額保証料", amount: prop.guaranteeFeeMonthly, editable: true },
   ];
 
-  // マイソクに書いてあった「その他の月額費用」（例：CATV・水道料金・駆け付けサービス）を合計の前に追加。
+  // 画像から拾った「その他の月額費用」（例：CATV・水道料金・駆け付けサービス）を合計の前に追加。
+  // 家賃・管理費などと表記ゆれで二重計上しないよう、正規化キーで重複を排除する。
   // id を monthly_custom_ で始めると CostTable が「ユーザー追加行」として扱い、ラベルも編集可になる。
   (prop.otherMonthlyCosts ?? []).forEach((c, i) => {
+    const key = normalizeCostKey(c.label);
+    const dupIdx = key ? items.findIndex((it) => normalizeCostKey(it.label) === key) : -1;
+    if (dupIdx >= 0) {
+      items[dupIdx] = { ...items[dupIdx], amount: c.amount };
+      return;
+    }
     items.push({ id: `monthly_custom_other_${i}`, label: c.label, amount: c.amount, editable: true });
   });
 

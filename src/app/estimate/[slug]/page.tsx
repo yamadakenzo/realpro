@@ -1,6 +1,10 @@
 import { supabase } from "@/lib/supabase";
+import {
+  SECTION, COST_LABELS, MONTHLY_LABELS, COST_NOTE_LABELS,
+  COST_BILINGUAL_KEY, MONTHLY_BILINGUAL_KEY, T, bilingual, LANGUAGES,
+} from "@/lib/translations";
 import type {
-  AgentInfo, AnalyzeResponse, CostItem, CustomerInfo, MonthlyItem,
+  AgentInfo, AnalyzeResponse, CostItem, CustomerInfo, Language, MonthlyItem,
 } from "@/types";
 
 type SharedEstimate = {
@@ -58,10 +62,16 @@ function NotFound() {
 
 export default async function EstimateViewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ lang?: string }>;
 }) {
   const { slug } = await params;
+  const sp = await searchParams;
+  // 共有URLの ?lang= で顧客言語を受け取る（/compare と同じ方式）。未指定・不正は日本語のみ
+  const lang: Language = LANGUAGES.includes(sp.lang as Language) ? (sp.lang as Language) : "ja";
+
   const row = await fetchEstimate(slug);
   if (!row) return <NotFound />;
 
@@ -77,6 +87,17 @@ export default async function EstimateViewPage({
   const monthlyTotal = monthly.find((m) => m.id === "monthly_total");
   const monthlyOthers = monthly.filter((m) => m.id !== "monthly_total");
   const photos = (propertyPhotoUrls ?? []).filter((u) => typeof u === "string" && u.length > 0);
+  const salesPoints = prop.salesPoints ?? [];
+
+  // ── 多言語ヘルパー：日本語＋（顧客言語）の併記を作る（PDFと同じ方針） ──
+  const bi = (ja: string, tr?: string): string =>
+    lang === "ja" || !tr || tr === ja ? ja : `${ja}（${tr}）`;
+  const sec = (key: string): string => bi(SECTION[key]?.ja ?? key, SECTION[key]?.[lang]);
+  const itemLabel = (c: CostItem): string =>
+    bilingual(COST_LABELS[c.id]?.ja ?? c.label, COST_BILINGUAL_KEY[c.id], lang);
+  const monthlyLabel = (m: MonthlyItem): string =>
+    bilingual(MONTHLY_LABELS[m.id]?.ja ?? m.label, MONTHLY_BILINGUAL_KEY[m.id], lang);
+  const noteLabel = (note: string): string => bi(note, COST_NOTE_LABELS[note]?.[lang]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -90,7 +111,9 @@ export default async function EstimateViewPage({
               </svg>
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-[15px] font-medium text-[#1a2e20] tracking-tight">物件費用見積書</h1>
+              <h1 className="text-[15px] font-medium text-[#1a2e20] tracking-tight">
+                {sec("reportTitle")}
+              </h1>
               {prop.propertyName && (
                 <p className="text-[12px] text-[#5a7a62] mt-0.5 truncate">{prop.propertyName}</p>
               )}
@@ -101,20 +124,24 @@ export default async function EstimateViewPage({
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-4">
         {customerInfo?.customerName && (
-          <p className="text-sm text-[#1a2e20]">{customerInfo.customerName} 様</p>
+          <p className="text-sm text-[#1a2e20]">
+            {customerInfo.customerName}{lang === "ja" ? " 様" : ""}
+          </p>
         )}
 
         {/* セールスポイント（金銭メリット・強い特徴） */}
-        {(prop.salesPoints?.length ?? 0) > 0 && (
+        {salesPoints.length > 0 && (
           <section className="bg-[#f3f9ec] rounded-xl border border-[#b8d898] p-4">
-            <h2 className="text-sm font-bold text-[#2d5e3a] mb-2">✨ セールスポイント</h2>
+            <h2 className="text-sm font-bold text-[#2d5e3a] mb-2">
+              ✨ {bi("セールスポイント", T[lang]?.salesPoints)}
+            </h2>
             <div className="flex flex-wrap gap-2">
-              {prop.salesPoints!.map((sp) => (
+              {salesPoints.map((spt) => (
                 <span
-                  key={sp}
+                  key={spt}
                   className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-[#2d5e3a] text-white"
                 >
-                  {sp}
+                  {spt}
                 </span>
               ))}
             </div>
@@ -125,15 +152,17 @@ export default async function EstimateViewPage({
         {photos.length > 0 && (
           <section className="bg-white rounded-xl border border-[#dce8d4] overflow-hidden">
             <div className="px-4 py-3 border-b border-[#eaf3de] bg-[#f7faf4] flex items-baseline justify-between">
-              <h2 className="text-sm font-semibold text-[#1a2e20]">物件写真</h2>
-              <span className="text-xs text-[#7a9e82]">{photos.length} 枚</span>
+              <h2 className="text-sm font-semibold text-[#1a2e20]">{sec("propertyPhotos")}</h2>
+              <span className="text-xs text-[#7a9e82]">
+                {photos.length}{lang === "ja" ? " 枚" : ""}
+              </span>
             </div>
             <div className="flex gap-2 overflow-x-auto p-3 snap-x snap-mandatory">
               {photos.map((url, i) => (
                 <img
                   key={`${url}-${i}`}
                   src={url}
-                  alt={`物件写真 ${i + 1}`}
+                  alt={`${prop.propertyName || "property"} ${i + 1}`}
                   className="max-h-64 h-64 w-auto object-cover rounded-lg shrink-0 snap-start bg-[#f7faf4]"
                 />
               ))}
@@ -145,36 +174,36 @@ export default async function EstimateViewPage({
         {(prop.propertyName || prop.address || prop.floorPlan || prop.area > 0 || prop.roomNumber) && (
           <section className="bg-white rounded-xl border border-[#dce8d4] overflow-hidden">
             <div className="px-4 py-3 border-b border-[#eaf3de] bg-[#f7faf4]">
-              <h2 className="text-sm font-semibold text-[#1a2e20]">物件情報</h2>
+              <h2 className="text-sm font-semibold text-[#1a2e20]">{sec("propertyInfo")}</h2>
             </div>
             <dl className="divide-y divide-[#eaf3de] text-sm">
               {prop.propertyName && (
                 <div className="px-4 py-2.5 flex">
-                  <dt className="w-24 shrink-0 text-[#7a9e82]">物件名</dt>
+                  <dt className="w-28 shrink-0 text-[#7a9e82]">{sec("propertyName")}</dt>
                   <dd className="text-[#1a2e20] flex-1">{prop.propertyName}</dd>
                 </div>
               )}
               {prop.roomNumber && (
                 <div className="px-4 py-2.5 flex">
-                  <dt className="w-24 shrink-0 text-[#7a9e82]">部屋番号</dt>
+                  <dt className="w-28 shrink-0 text-[#7a9e82]">{sec("roomNumber")}</dt>
                   <dd className="text-[#1a2e20] flex-1">{prop.roomNumber}</dd>
                 </div>
               )}
               {prop.address && (
                 <div className="px-4 py-2.5 flex">
-                  <dt className="w-24 shrink-0 text-[#7a9e82]">住所</dt>
+                  <dt className="w-28 shrink-0 text-[#7a9e82]">{sec("address")}</dt>
                   <dd className="text-[#1a2e20] flex-1">{prop.address}</dd>
                 </div>
               )}
               {prop.floorPlan && (
                 <div className="px-4 py-2.5 flex">
-                  <dt className="w-24 shrink-0 text-[#7a9e82]">間取り</dt>
+                  <dt className="w-28 shrink-0 text-[#7a9e82]">{sec("floorPlan")}</dt>
                   <dd className="text-[#1a2e20] flex-1">{prop.floorPlan}</dd>
                 </div>
               )}
               {prop.area > 0 && (
                 <div className="px-4 py-2.5 flex">
-                  <dt className="w-24 shrink-0 text-[#7a9e82]">面積</dt>
+                  <dt className="w-28 shrink-0 text-[#7a9e82]">{sec("area")}</dt>
                   <dd className="text-[#1a2e20] flex-1">{prop.area} m²</dd>
                 </div>
               )}
@@ -185,22 +214,24 @@ export default async function EstimateViewPage({
         {/* 初期費用 */}
         <section className="bg-white rounded-xl border border-[#dce8d4] overflow-hidden">
           <div className="px-4 py-3 border-b border-[#eaf3de] bg-[#f7faf4] flex items-baseline justify-between">
-            <h2 className="text-sm font-semibold text-[#1a2e20]">初期費用</h2>
-            <span className="text-xs text-[#7a9e82]">{costs.length} 項目</span>
+            <h2 className="text-sm font-semibold text-[#1a2e20]">{sec("initialCosts")}</h2>
+            <span className="text-xs text-[#7a9e82]">
+              {costs.length}{lang === "ja" ? " 項目" : ""}
+            </span>
           </div>
           <ul className="divide-y divide-[#eaf3de]">
             {costs.map((c) => (
               <li key={c.id} className="px-4 py-2.5 flex items-baseline gap-3 text-sm">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[#1a2e20]">{c.label}</p>
-                  {c.note && <p className="text-[11px] text-[#7a9e82] mt-0.5">{c.note}</p>}
+                  <p className="text-[#1a2e20]">{itemLabel(c)}</p>
+                  {c.note && <p className="text-[11px] text-[#7a9e82] mt-0.5">{noteLabel(c.note)}</p>}
                 </div>
                 <p className="font-medium tabular-nums text-[#1a2e20]">{yen(c.amount)}</p>
               </li>
             ))}
           </ul>
           <div className="px-4 py-3 bg-[#eaf3de] flex items-baseline justify-between">
-            <span className="text-sm font-semibold text-[#1a2e20]">初期費用合計</span>
+            <span className="text-sm font-semibold text-[#1a2e20]">{sec("totalInitial")}</span>
             <span className="text-base font-bold tabular-nums text-[#27500a]">
               {yen(result.totalCost)}
             </span>
@@ -211,19 +242,19 @@ export default async function EstimateViewPage({
         {monthlyOthers.length > 0 && (
           <section className="bg-white rounded-xl border border-[#dce8d4] overflow-hidden">
             <div className="px-4 py-3 border-b border-[#eaf3de] bg-[#f7faf4]">
-              <h2 className="text-sm font-semibold text-[#1a2e20]">月額費用</h2>
+              <h2 className="text-sm font-semibold text-[#1a2e20]">{sec("monthlyCosts")}</h2>
             </div>
             <ul className="divide-y divide-[#eaf3de]">
               {monthlyOthers.map((m) => (
                 <li key={m.id} className="px-4 py-2.5 flex items-baseline justify-between text-sm">
-                  <span className="text-[#1a2e20]">{m.label}</span>
+                  <span className="text-[#1a2e20]">{monthlyLabel(m)}</span>
                   <span className="font-medium tabular-nums text-[#1a2e20]">{yen(m.amount)}</span>
                 </li>
               ))}
             </ul>
             {monthlyTotal && (
               <div className="px-4 py-3 bg-[#eaf3de] flex items-baseline justify-between">
-                <span className="text-sm font-semibold text-[#1a2e20]">月額合計</span>
+                <span className="text-sm font-semibold text-[#1a2e20]">{monthlyLabel(monthlyTotal)}</span>
                 <span className="text-base font-bold tabular-nums text-[#27500a]">
                   {yen(monthlyTotal.amount)}
                 </span>
@@ -234,7 +265,7 @@ export default async function EstimateViewPage({
 
         {comment && (
           <section className="bg-white rounded-xl border border-[#dce8d4] p-4">
-            <h2 className="text-sm font-semibold text-[#1a2e20] mb-2">担当者コメント</h2>
+            <h2 className="text-sm font-semibold text-[#1a2e20] mb-2">{sec("agentComment")}</h2>
             <p className="text-sm text-[#1a2e20] whitespace-pre-wrap leading-relaxed">{comment}</p>
           </section>
         )}
@@ -243,7 +274,7 @@ export default async function EstimateViewPage({
           <section className="bg-white rounded-xl border border-[#dce8d4] p-4 text-sm space-y-1">
             {validUntil && (
               <p className="text-[#5a7a62]">
-                見積もり有効期限：
+                {sec("validUntil")}：
                 <span className="text-[#1a2e20]">
                   {new Date(validUntil).toLocaleDateString("ja-JP")}
                 </span>
@@ -251,7 +282,7 @@ export default async function EstimateViewPage({
             )}
             {(agentInfo?.companyName || agentInfo?.agentName) && (
               <p className="text-[#5a7a62]">
-                担当：
+                {sec("agentName")}：
                 <span className="text-[#1a2e20]">
                   {[agentInfo?.companyName, agentInfo?.agentName].filter(Boolean).join(" / ")}
                 </span>
@@ -259,7 +290,7 @@ export default async function EstimateViewPage({
             )}
             {agentInfo?.phone && (
               <p className="text-[#5a7a62]">
-                TEL：<span className="text-[#1a2e20]">{agentInfo.phone}</span>
+                {sec("phone")}：<span className="text-[#1a2e20]">{agentInfo.phone}</span>
               </p>
             )}
           </section>
@@ -267,6 +298,9 @@ export default async function EstimateViewPage({
 
         <p className="text-[11px] text-[#7a9e82] leading-relaxed pt-2">
           ※ 本見積書は概算です。実際の費用は変動する場合があります。詳細は担当者にご確認ください。
+          {lang !== "ja" && T[lang]?.customerDisclaimer && (
+            <span className="block mt-1">{T[lang].customerDisclaimer}</span>
+          )}
         </p>
       </main>
     </div>

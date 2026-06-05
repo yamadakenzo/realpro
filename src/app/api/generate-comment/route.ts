@@ -302,7 +302,7 @@ ${customerHints.length > 0 ? customerHints.map((h) => `- ${h}`).join("\n") : "�
 管理費: ${extracted.managementFee > 0 ? extracted.managementFee.toLocaleString("ja-JP") + "円" : "（不明）"}
 初期費用合計: ${totalCost > 0 ? totalCost.toLocaleString("ja-JP") + "円" : "（未計算）"}
 月額合計: ${monthlyTotal > 0 ? monthlyTotal.toLocaleString("ja-JP") + "円" : "（未計算）"}
-セールスポイント（マイソク記載の強い特徴・金銭メリット）: ${
+セールスポイント（物件資料に記載の強い特徴・金銭メリット）: ${
       extracted.salesPoints && extracted.salesPoints.length > 0
         ? extracted.salesPoints.join("、")
         : "（特になし）"
