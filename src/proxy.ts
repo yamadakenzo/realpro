@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 
-const PUBLIC_PATHS = ["/login", "/estimate", "/compare"];
+// /api/staticmap は公開ページ（/estimate）の地図画像で未ログインの顧客も読むため除外する。
+// このルートはサーバー側でAPIキーを使い、画像だけを返す（キーはクライアントに出ない）。
+const PUBLIC_PATHS = ["/login", "/estimate", "/compare", "/api/staticmap"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

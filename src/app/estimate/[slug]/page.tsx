@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { geocodeAddress } from "@/lib/geocode";
 import {
   SECTION, COST_LABELS, MONTHLY_LABELS, COST_NOTE_LABELS,
   COST_BILINGUAL_KEY, MONTHLY_BILINGUAL_KEY, T, bilingual, LANGUAGES,
@@ -88,6 +89,10 @@ export default async function EstimateViewPage({
   const monthlyOthers = monthly.filter((m) => m.id !== "monthly_total");
   const photos = (propertyPhotoUrls ?? []).filter((u) => typeof u === "string" && u.length > 0);
   const salesPoints = prop.salesPoints ?? [];
+
+  // 物件位置の地図。住所→座標に変換できた時だけ表示（取れなければ地図セクションを出さない）。
+  // 画像は /api/staticmap 経由で取得するのでAPIキーはHTMLに出ない。
+  const mapLoc = prop.address ? await geocodeAddress(prop.address) : null;
 
   // ── 多言語ヘルパー：日本語＋（顧客言語）の併記を作る（PDFと同じ方針） ──
   const bi = (ja: string, tr?: string): string =>
@@ -208,6 +213,27 @@ export default async function EstimateViewPage({
                 </div>
               )}
             </dl>
+          </section>
+        )}
+
+        {/* 地図（住所→座標に変換できた時だけ。タップでGoogleマップが開く。画像はサーバー経由でキー非露出） */}
+        {mapLoc && (
+          <section className="bg-white rounded-xl border border-[#dce8d4] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#eaf3de] bg-[#f7faf4]">
+              <h2 className="text-sm font-semibold text-[#1a2e20]">{sec("mapTitle")}</h2>
+            </div>
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${mapLoc.lat},${mapLoc.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <img
+                src={`/api/staticmap?lat=${mapLoc.lat}&lng=${mapLoc.lng}&lang=${lang}`}
+                alt={sec("mapTitle")}
+                className="w-full h-56 object-cover"
+              />
+            </a>
           </section>
         )}
 

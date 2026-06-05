@@ -314,6 +314,11 @@ export const SECTION: Record<string, ML> = {
     ko: "사진", vi: "Hình ảnh", ne: "तस्बिर",
     es: "Fotos", pt: "Fotos", id: "Foto",
   },
+  mapTitle: {
+    ja: "地図", en: "Map", zh: "地图", "zh-tw": "地圖",
+    ko: "지도", vi: "Bản đồ", ne: "नक्सा",
+    es: "Mapa", pt: "Mapa", id: "Peta",
+  },
 };
 
 // ─── 備考（初期費用の定番ノート）の翻訳 ─────────────────────

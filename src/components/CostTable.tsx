@@ -1,11 +1,33 @@
 "use client";
 
+import { useState } from "react";
 import {
   COST_LABELS, MONTHLY_LABELS, CAT_LABELS, SECTION,
   PHONETICS, GLOSSARY, T, bilingual, formatAmount, sectionLabel,
   COST_BILINGUAL_KEY, MONTHLY_BILINGUAL_KEY, CAT_BILINGUAL_KEY,
 } from "@/lib/translations";
 import type { AgentInfo, CostItem, ExtractedProperty, Language, MonthlyItem } from "@/types";
+
+// 物件位置の静的地図（画面・PDF両方に表示）。
+// 画像はサーバールート /api/staticmap 経由なので APIキーはHTMLに出ない。
+// 住所から座標が取れない等で画像が読めなければ自動で非表示にする（地図セクションごと消す）。
+function PropertyMap({ address, label }: { address: string; label: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  const src = `/api/staticmap?address=${encodeURIComponent(address)}`;
+  return (
+    <div className="px-6 py-4 border-b border-slate-100">
+      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{label}</h3>
+      <img
+        src={src}
+        alt={label}
+        onError={() => setFailed(true)}
+        className="w-full h-48 object-cover rounded-lg border border-slate-200"
+        style={{ breakInside: "avoid", pageBreakInside: "avoid" }}
+      />
+    </div>
+  );
+}
 
 interface Props {
   extracted: ExtractedProperty;
@@ -256,6 +278,11 @@ export default function CostTable({
           )}
         </div>
       </div>
+
+      {/* ===== 物件位置の地図（住所がある時だけ。画面＋PDF。画像はサーバー経由でキー非露出） ===== */}
+      {extracted.address && (
+        <PropertyMap address={extracted.address} label={sectionLabel("mapTitle", pdfLang)} />
+      )}
 
       {/* ===== セールスポイント（金銭メリット・強い特徴。画面とPDFで目立たせる） ===== */}
       {(extracted.salesPoints?.length ?? 0) > 0 && (
