@@ -6,11 +6,13 @@ interface Props {
   estimates: SavedEstimate[];
   onRestore: (result: AnalyzeResponse, agentInfo: AgentInfo, est: SavedEstimate) => void;
   onDelete: (id: string) => void;
+  onCreateInstagram: (est: SavedEstimate) => void;
+  instagramLoadingId?: string | null;
 }
 
 const fmt = (n: number) => `¥${n.toLocaleString("ja-JP")}`;
 
-export default function HistoryTab({ estimates, onRestore, onDelete }: Props) {
+export default function HistoryTab({ estimates, onRestore, onDelete, onCreateInstagram, instagramLoadingId }: Props) {
   if (estimates.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-slate-400">
@@ -74,19 +76,28 @@ export default function HistoryTab({ estimates, onRestore, onDelete }: Props) {
             </div>
 
             {/* アクションボタン */}
-            <div className="px-4 py-3 flex gap-2">
+            <div className="px-4 py-3 flex flex-col gap-2">
               <button
-                onClick={() => onRestore(est.result, est.agentInfo, est)}
-                className="flex-1 px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                onClick={() => onCreateInstagram(est)}
+                disabled={instagramLoadingId === est.id}
+                className="w-full px-3 py-2 rounded-lg text-xs font-medium bg-[#2d5e3a] text-white hover:bg-[#1a2e20] transition-colors disabled:opacity-50"
               >
-                復元して編集
+                {instagramLoadingId === est.id ? "準備中…" : "📸 Instagram投稿を作る"}
               </button>
-              <button
-                onClick={() => onDelete(est.id)}
-                className="px-3 py-2 rounded-lg text-xs font-medium bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
-              >
-                削除
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onRestore(est.result, est.agentInfo, est)}
+                  className="flex-1 px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                >
+                  復元して編集
+                </button>
+                <button
+                  onClick={() => onDelete(est.id)}
+                  className="px-3 py-2 rounded-lg text-xs font-medium bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                >
+                  削除
+                </button>
+              </div>
             </div>
           </div>
         );

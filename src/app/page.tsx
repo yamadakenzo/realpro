@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import ImageUploader from "@/components/ImageUploader";
 import CostTable from "@/components/CostTable";
 import AgentInfoForm from "@/components/AgentInfoForm";
@@ -126,6 +127,9 @@ export default function Home() {
   const [shareUrl, setShareUrl] = useState("");
   const [shareUrlCopied, setShareUrlCopied] = useState(false);
   const [shareUrlError, setShareUrlError] = useState<string | null>(null);
+  const router = useRouter();
+  const [igLoadingCurrent, setIgLoadingCurrent] = useState(false);
+  const [igLoadingId, setIgLoadingId] = useState<string | null>(null);
   // 共有ページ（/estimate）の表示言語。ja のときは日本語のみ、それ以外は日本語＋その言語の併記
   const [shareLang, setShareLang] = useState<Language>("ja");
 
@@ -594,6 +598,13 @@ export default function Home() {
       // 顧客言語を選んでいれば共有URLに ?lang= を付ける（ja は付けない＝日本語のみ）
       const finalUrl = shareLang !== "ja" ? `${data.url}?lang=${shareLang}` : data.url;
       setShareUrl(finalUrl);
+      // 履歴に Supabase slug をキャッシュ（履歴→Instagram で再利用＝写真つきで開ける）
+      const localSlug = makeSlug(result.extracted);
+      if (localSlug && data.slug) {
+        const updated = estimates.map((e) => (e.slug === localSlug ? { ...e, shareSlug: data.slug } : e));
+        setEstimates(updated);
+        persistEstimates(updated);
+      }
       try {
         await navigator.clipboard.writeText(finalUrl);
         setShareUrlCopied(true);
@@ -605,6 +616,76 @@ export default function Home() {
       setShareUrlError(err instanceof Error ? err.message : "不明なエラーが発生しました");
     } finally {
       setShareUrlLoading(false);
+    }
+  };
+
+  // 現在編集中の物件で Supabase 行を作成（写真もアップロード）して /instagram へ遷移。
+  // メイン画面からの導線。写真がページ状態にあるので確実に写真つきで生成できる。
+  const handleCreateInstagramFromCurrent = async () => {
+    if (!result || igLoadingCurrent) return;
+    setIgLoadingCurrent(true);
+    setShareUrlError(null);
+    try {
+      const uploadedPhotoUrls = await uploadPropertyPhotos(propertyPhotos);
+      const payload = {
+        result,
+        agentInfo,
+        customerInfo: customerInfo.customerName ? customerInfo : undefined,
+        comment: comment.trim() || undefined,
+        validUntil,
+        propertyPhotoUrls: uploadedPhotoUrls,
+      };
+      const res = await fetch("/api/estimates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.slug) throw new Error(data.error ?? "Instagram投稿の生成に失敗しました");
+      const localSlug = makeSlug(result.extracted);
+      if (localSlug && data.slug) {
+        const updated = estimates.map((e) => (e.slug === localSlug ? { ...e, shareSlug: data.slug } : e));
+        setEstimates(updated);
+        persistEstimates(updated);
+      }
+      router.push(`/instagram?slug=${data.slug}`);
+    } catch (err) {
+      setShareUrlError(err instanceof Error ? err.message : "不明なエラーが発生しました");
+      setIgLoadingCurrent(false);
+    }
+  };
+
+  // 履歴カードから /instagram へ。Supabase slug をキャッシュ済みなら再利用（共有済みなら写真つき）、
+  // 無ければ履歴データで新規作成（履歴は写真URLを持たないため写真なし＝プレースホルダ）。
+  const handleCreateInstagramFromHistory = async (est: SavedEstimate) => {
+    if (igLoadingId) return;
+    if (est.shareSlug) {
+      router.push(`/instagram?slug=${est.shareSlug}`);
+      return;
+    }
+    setIgLoadingId(est.id);
+    try {
+      const payload = {
+        result: est.result,
+        agentInfo: est.agentInfo,
+        customerInfo: est.customerInfo,
+        comment: est.comment,
+        propertyPhotoUrls: [],
+      };
+      const res = await fetch("/api/estimates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.slug) throw new Error(data.error ?? "失敗");
+      const updated = estimates.map((e) => (e.id === est.id ? { ...e, shareSlug: data.slug } : e));
+      setEstimates(updated);
+      persistEstimates(updated);
+      router.push(`/instagram?slug=${data.slug}`);
+    } catch {
+      setIgLoadingId(null);
+      alert("Instagram投稿の準備に失敗しました。もう一度お試しください。");
     }
   };
 
@@ -897,6 +978,19 @@ export default function Home() {
                         d="M3 10h18M3 14h18M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
                     </svg>
                     保存して比較表へ
+                  </button>
+                  {/* Instagram投稿を作る（現在の物件＝写真つきで /instagram へ） */}
+                  <button
+                    onClick={handleCreateInstagramFromCurrent}
+                    disabled={!result || igLoadingCurrent}
+                    className={[
+                      "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors",
+                      result && !igLoadingCurrent
+                        ? "bg-[#2d5e3a] text-white hover:bg-[#1a2e20]"
+                        : "bg-slate-100 text-slate-400 cursor-not-allowed",
+                    ].join(" ")}
+                  >
+                    📸 {igLoadingCurrent ? "準備中…" : "Instagram投稿を作る"}
                   </button>
                 </div>
                 <p className="mt-2 text-[11px] text-[#7a9e82]">
@@ -1259,6 +1353,8 @@ export default function Home() {
             estimates={estimates}
             onRestore={(r, a, est) => handleRestore(r, a, est)}
             onDelete={handleDelete}
+            onCreateInstagram={handleCreateInstagramFromHistory}
+            instagramLoadingId={igLoadingId}
           />
         )}
 

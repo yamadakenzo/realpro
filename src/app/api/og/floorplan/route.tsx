@@ -25,12 +25,17 @@ export async function GET(request: Request) {
 
   const postNumber = await getOrAssignPostNumber(slug, row.data, searchParams.get("source") || undefined);
 
-  // 間取り図の自動判別は難しいため、当面は「最後の1枚」を間取り図とみなす。
-  // 将来ユーザーが指定できるよう ?floorIndex=（0始まり）で上書きできる余地を残す。
-  // （さらに先では保存データに floorPlanPhotoIndex を持たせて永続化する案がある）
+  // 間取り図に使う写真を決める。優先順位：
+  //  1. ?floorIndex=（/instagram のプレビュー用の一時上書き）
+  //  2. 保存済み data.floorPlanIndex（/instagram で「間取り図として保存」した選択）
+  //  3. 既定＝最後の1枚（従来動作）
   const photos = getPhotos(row);
-  const idxParam = searchParams.get("floorIndex");
   let floorIndex = photos.length > 0 ? photos.length - 1 : -1;
+  const savedIdx = (row.data as { floorPlanIndex?: unknown }).floorPlanIndex;
+  if (typeof savedIdx === "number" && savedIdx >= 0 && savedIdx < photos.length) {
+    floorIndex = savedIdx;
+  }
+  const idxParam = searchParams.get("floorIndex");
   if (idxParam !== null) {
     const n = parseInt(idxParam, 10);
     if (!Number.isNaN(n) && n >= 0 && n < photos.length) floorIndex = n;

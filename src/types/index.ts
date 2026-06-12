@@ -102,4 +102,7 @@ export interface SavedEstimate {
   nearby?: NearbyResult;
   // 同一物件の二重登録を防ぐためのキー（物件名|住所|部屋番号）。旧データには存在しないので optional
   slug?: string;
+  // 共有/Instagram生成で作成した Supabase estimates の8文字slug（キャッシュ）。
+  // 履歴から /instagram へ飛ぶ際に再利用する。旧データには無いので optional
+  shareSlug?: string;
 }
