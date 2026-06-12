@@ -4,7 +4,8 @@ import { auth } from "@/auth";
 // /api/staticmap は公開ページ（/estimate）の地図画像で未ログインの顧客も読むため除外する。
 // このルートはサーバー側でAPIキーを使い、画像だけを返す（キーはクライアントに出ない）。
 // /api/og は Instagram 投稿用画像（表紙など）を返すルート。画像だけを返し鍵は出さない（/api/staticmap と同じ扱い）。
-const PUBLIC_PATHS = ["/login", "/estimate", "/compare", "/api/staticmap", "/api/og"];
+// /api/public は housing-jp（別ドメイン）の管理画面から番号で物件を引く公開API。簡易キー（REALPRO_LOOKUP_KEY）でルート内部で認証する。
+const PUBLIC_PATHS = ["/login", "/estimate", "/compare", "/api/staticmap", "/api/og", "/api/public"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 // Instagram 投稿プレビュー＆ダウンロード画面。
 // 既存の画像API（/api/og/cover|floorplan|spec|cta）とキャプションAPI（/api/og/caption）を読むだけ。
@@ -47,11 +48,14 @@ function InstagramInner() {
   const [captionLoading, setCaptionLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [downloadingAll, setDownloadingAll] = useState(false);
-  // 間取り写真ピッカー
+  // 写真ピッカー（表紙＝1枚目／間取り図＝2枚目）
   const [photos, setPhotos] = useState<string[]>([]);
   const [floorIndex, setFloorIndex] = useState<number | null>(null);
   const [savingFloor, setSavingFloor] = useState(false);
   const [floorMsg, setFloorMsg] = useState("");
+  const [coverIndex, setCoverIndex] = useState<number | null>(null);
+  const [savingCover, setSavingCover] = useState(false);
+  const [coverMsg, setCoverMsg] = useState("");
 
   const loadList = () => {
     setListLoading(true);
@@ -67,6 +71,7 @@ function InstagramInner() {
     setSlug(s);
     setSourceMsg("");
     setFloorMsg("");
+    setCoverMsg("");
     const letter = (currentNumber ?? "").split("-")[0];
     setPropSource(LETTER_TO_CODE[letter] ?? "itandi");
   };
@@ -104,11 +109,12 @@ function InstagramInner() {
       .finally(() => setCaptionLoading(false));
   }, [slug, version]);
 
-  // 写真一覧＋保存済み間取りindexを取得（ピッカー用）
+  // 写真一覧＋保存済み表紙/間取りindexを取得（ピッカー用）
   useEffect(() => {
     if (!slug) {
       setPhotos([]);
       setFloorIndex(null);
+      setCoverIndex(null);
       return;
     }
     fetch(`/api/estimates/${encodeURIComponent(slug)}`)
@@ -116,21 +122,25 @@ function InstagramInner() {
       .then((d) => {
         setPhotos(d?.photos ?? []);
         setFloorIndex(typeof d?.floorIndex === "number" ? d.floorIndex : null);
+        setCoverIndex(typeof d?.coverIndex === "number" ? d.coverIndex : null);
       })
       .catch(() => {
         setPhotos([]);
         setFloorIndex(null);
+        setCoverIndex(null);
       });
   }, [slug, version]);
 
   const imgUrl = (key: string) => {
     let u = `/api/og/${key}?slug=${encodeURIComponent(slug)}&v=${version}`;
     if (key === "floorplan" && floorIndex != null) u += `&floorIndex=${floorIndex}`;
+    if (key === "cover" && coverIndex != null) u += `&coverIndex=${coverIndex}`;
     return u;
   };
 
-  // 既定（保存値が無いとき）は最後の写真を間取り図に使う
+  // 既定（保存値が無いとき）：間取り図は最後の写真、表紙は最初の写真
   const effectiveFloorIndex = floorIndex != null ? floorIndex : photos.length > 0 ? photos.length - 1 : -1;
+  const effectiveCoverIndex = coverIndex != null ? coverIndex : photos.length > 0 ? 0 : -1;
 
   const saveSource = async () => {
     if (!slug || saving) return;
@@ -173,6 +183,27 @@ function InstagramInner() {
       setFloorMsg("保存に失敗しました");
     } finally {
       setSavingFloor(false);
+    }
+  };
+
+  const saveCover = async () => {
+    if (!slug || coverIndex == null || savingCover) return;
+    setSavingCover(true);
+    setCoverMsg("");
+    try {
+      const res = await fetch(`/api/estimates/${encodeURIComponent(slug)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coverIndex }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error ?? "失敗");
+      setCoverMsg("表紙に使う写真を保存しました");
+      setVersion((v) => v + 1);
+    } catch {
+      setCoverMsg("保存に失敗しました");
+    } finally {
+      setSavingCover(false);
     }
   };
 
@@ -230,6 +261,20 @@ function InstagramInner() {
     <main className="min-h-screen bg-[#f2f4f0] px-4 py-6 sm:px-8">
       <div className="mx-auto max-w-6xl">
         <header className="mb-6">
+          {/* 戻る導線：物件が選択中ならその見積もりページ、未選択なら realpro メインへ */}
+          <nav className="mb-3 flex flex-wrap items-center gap-3 text-sm">
+            <Link href="/" className="inline-flex items-center gap-1 text-[#2d5e3a] hover:underline">
+              ← realpro メイン画面へ
+            </Link>
+            {slug && (
+              <Link
+                href={`/estimate/${encodeURIComponent(slug)}`}
+                className="inline-flex items-center gap-1 text-[#2d5e3a] hover:underline"
+              >
+                この物件の見積もりページを開く →
+              </Link>
+            )}
+          </nav>
           <h1 className="text-xl font-bold text-[#1a2e20]">Instagram 投稿の作成</h1>
           <p className="mt-1 text-sm text-[#5a7a62]">
             物件を選ぶと、4枚の画像とキャプションが表示されます。画像はダウンロード、キャプションはコピーできます。
@@ -345,6 +390,48 @@ function InstagramInner() {
           </p>
         ) : (
           <>
+            {/* ===== 表紙に使う写真を選ぶ ===== */}
+            {photos.length > 0 && (
+              <section className="mb-4 rounded-2xl border border-[#dce8d4] bg-white p-4 shadow-sm">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold text-[#1a2e20]">表紙に使う写真を選ぶ（1枚目に表示）</h2>
+                  <div className="flex items-center gap-2">
+                    {coverMsg && <span className="text-xs text-[#2d5e3a]">{coverMsg}</span>}
+                    <button
+                      onClick={saveCover}
+                      disabled={savingCover || coverIndex == null}
+                      className="rounded-lg bg-[#2d5e3a] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                    >
+                      {savingCover ? "保存中…" : "この写真を表紙に保存"}
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-8">
+                  {photos.map((url, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCoverIndex(i)}
+                      className={[
+                        "relative overflow-hidden rounded-lg border-2 transition-colors",
+                        i === effectiveCoverIndex ? "border-[#2d5e3a]" : "border-transparent hover:border-[#b8d898]",
+                      ].join(" ")}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt={`写真${i + 1}`} className="aspect-square w-full object-cover" />
+                      {i === effectiveCoverIndex && (
+                        <span className="absolute bottom-0 left-0 right-0 bg-[#2d5e3a] py-0.5 text-center text-[10px] font-medium text-white">
+                          表紙
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[11px] text-[#a8c4ae]">
+                  ※ 写真をクリックすると下のプレビュー（1枚目）に反映されます。「保存」で次回も維持されます（未保存時は最初の写真）。
+                </p>
+              </section>
+            )}
+
             {/* ===== 間取り図に使う写真を選ぶ ===== */}
             {photos.length > 0 && (
               <section className="mb-4 rounded-2xl border border-[#dce8d4] bg-white p-4 shadow-sm">
@@ -420,7 +507,7 @@ function InstagramInner() {
                   </div>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    key={`${slug}-${version}-${floorIndex}-${s.key}`}
+                    key={`${slug}-${version}-${floorIndex}-${coverIndex}-${s.key}`}
                     src={imgUrl(s.key)}
                     alt={s.label}
                     className="aspect-[1080/1350] w-full bg-slate-100 object-cover"

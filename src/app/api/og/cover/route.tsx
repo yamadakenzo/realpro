@@ -92,10 +92,24 @@ export async function GET(request: Request) {
   // 投稿番号（?source= があれば記号だけ上書き。連番は順位ベースで安定）
   const postNumber = await getOrAssignPostNumber(slug, row.data, searchParams.get("source") || undefined);
 
-  // 写真：最初の有効なURLを data URI 化。無ければプレースホルダ。
-  const photoUrl = (row?.data?.propertyPhotoUrls ?? []).find(
-    (u) => typeof u === "string" && u.length > 0,
+  // 表紙に使う写真を決める。優先順位（間取り図と同じ考え方）：
+  //  1. ?coverIndex=（/instagram のプレビュー用の一時上書き）
+  //  2. 保存済み data.coverPhotoIndex（/instagram で「表紙として保存」した選択）
+  //  3. 既定＝最初の1枚（従来動作）
+  const photos = (row?.data?.propertyPhotoUrls ?? []).filter(
+    (u): u is string => typeof u === "string" && u.length > 0,
   );
+  let coverIndex = photos.length > 0 ? 0 : -1;
+  const savedCover = (row.data as { coverPhotoIndex?: unknown }).coverPhotoIndex;
+  if (typeof savedCover === "number" && savedCover >= 0 && savedCover < photos.length) {
+    coverIndex = savedCover;
+  }
+  const coverParam = searchParams.get("coverIndex");
+  if (coverParam !== null) {
+    const n = parseInt(coverParam, 10);
+    if (!Number.isNaN(n) && n >= 0 && n < photos.length) coverIndex = n;
+  }
+  const photoUrl = coverIndex >= 0 ? photos[coverIndex] : undefined;
   const photoData = photoUrl ? await toDataUri(photoUrl) : null;
 
   const rentTotal = (prop.rent ?? 0) + (prop.managementFee ?? 0);
