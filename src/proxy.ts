@@ -3,7 +3,8 @@ import { auth } from "@/auth";
 
 // /api/staticmap は公開ページ（/estimate）の地図画像で未ログインの顧客も読むため除外する。
 // このルートはサーバー側でAPIキーを使い、画像だけを返す（キーはクライアントに出ない）。
-const PUBLIC_PATHS = ["/login", "/estimate", "/compare", "/api/staticmap"];
+// /api/og は Instagram 投稿用画像（表紙など）を返すルート。画像だけを返し鍵は出さない（/api/staticmap と同じ扱い）。
+const PUBLIC_PATHS = ["/login", "/estimate", "/compare", "/api/staticmap", "/api/og"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

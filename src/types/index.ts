@@ -28,6 +28,9 @@ export interface ExtractedProperty {
   // 2026-06-06 追加（第2弾）。入居者の金銭メリット・強いアピールになる特徴で、マイソクに明記されているものだけ
   // 例：インターネット無料 / 敷金なし / 礼金なし / フリーレント1ヶ月 / 更新料なし。旧データには無いので optional
   salesPoints?: string[];
+  // 物件の取得元。Instagram 投稿番号の記号に使う（realpro=R / ATBB=A / イタンジBB=I）。
+  // 未指定なら I（イタンジBB）扱い。将来は解析画面のUIで選べるようにする想定（今は手動設定なし）。
+  source?: "R" | "A" | "I" | string;
 }
 
 // generate-comment APIが返す周辺施設データ（保存時に流用して二重課金回避）
