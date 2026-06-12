@@ -20,18 +20,28 @@ type PostNumberData = {
   igPost?: IgPost;
 };
 
-// 取得元 → 記号。realpro=R / ATBB=A / イタンジBB=I。未指定・不明は I。
+// 取得元 → 記号。イタンジBB=T / ATBB=A / realpro=P。未指定・不明は T。
+// （I は数字1と、R は口頭発音が紛らわしいため T/A/P に変更。
+//   旧データの記号 I/R も後方互換で T/P に寄せる：I=イタンジ→T、R=realpro→P）
 export function sourceLetter(source: string | undefined): string {
-  if (source === "R" || source === "A" || source === "I") return source;
-  const map: Record<string, string> = {
-    realpro: "R",
-    atbb: "A",
-    ATBB: "A",
-    itandi: "I",
-    "イタンジBB": "I",
-    "イタンジ": "I",
-  };
-  return (source && map[source]) || "I";
+  switch (source) {
+    case "T":
+    case "I":
+    case "itandi":
+    case "イタンジBB":
+    case "イタンジ":
+      return "T";
+    case "A":
+    case "atbb":
+    case "ATBB":
+      return "A";
+    case "P":
+    case "R":
+    case "realpro":
+      return "P";
+    default:
+      return "T";
+  }
 }
 
 export const pad3 = (n: number) => String(n).padStart(3, "0");

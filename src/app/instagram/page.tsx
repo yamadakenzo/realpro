@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 
 // Instagram 投稿プレビュー＆ダウンロード画面。
 // 既存の画像API（/api/og/cover|floorplan|spec|cta）とキャプションAPI（/api/og/caption）を読むだけ。
-// 物件一覧は GET /api/estimates（認証必須）から取得。番号は og 側と同じ通し順位で算出済み。
+// 物件一覧は GET /api/estimates（認証必須）から取得。番号は保存方式（estimates.data.igPost）。
+// ソース（取得元）は物件ごとに選んで POST /api/estimates/source で保存し、番号の記号に反映する。
 
 type EstimateItem = {
   slug: string;
@@ -15,14 +16,13 @@ type EstimateItem = {
   createdAt: string;
 };
 
-// ソース記号。未指定（""）は各物件に保存された source（無ければ I）を使う。
-// 将来：解析画面で物件ごとに source を設定できるようにすれば、ここでの上書きは不要になる。
+// 取得元（意味キー）。番号の記号：イタンジBB=T / ATBB=A / realpro=P。未指定の既定は T。
 const SOURCES = [
-  { code: "", label: "物件の設定どおり" },
-  { code: "I", label: "イタンジBB（I）" },
-  { code: "R", label: "realpro（R）" },
-  { code: "A", label: "ATBB（A）" },
+  { code: "itandi", label: "イタンジBB（T）" },
+  { code: "atbb", label: "ATBB（A）" },
+  { code: "realpro", label: "realpro（P）" },
 ];
+const LETTER_TO_CODE: Record<string, string> = { T: "itandi", A: "atbb", P: "realpro" };
 
 const SLIDES = [
   { key: "cover", label: "① 表紙" },
@@ -31,29 +31,39 @@ const SLIDES = [
   { key: "cta", label: "④ 問い合わせ" },
 ];
 
-const GREEN = "#2d5e3a";
-
 export default function InstagramPage() {
   const [list, setList] = useState<EstimateItem[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [slug, setSlug] = useState("");
   const [slugInput, setSlugInput] = useState("");
-  const [source, setSource] = useState("");
+  const [propSource, setPropSource] = useState("itandi");
+  const [saving, setSaving] = useState(false);
+  const [sourceMsg, setSourceMsg] = useState("");
+  const [version, setVersion] = useState(0); // 保存後に画像・キャプションを再読み込みするためのキャッシュバスター
   const [caption, setCaption] = useState("");
   const [number, setNumber] = useState("");
   const [captionLoading, setCaptionLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [downloadingAll, setDownloadingAll] = useState(false);
 
-  useEffect(() => {
+  const loadList = () => {
     fetch("/api/estimates")
       .then((r) => r.json())
       .then((d) => setList(d.estimates ?? []))
       .catch(() => {})
       .finally(() => setListLoading(false));
-  }, []);
+  };
+  useEffect(loadList, []);
 
-  // 物件 or ソース記号が変わったらキャプションを取り直し、番号も更新
+  // 物件を選ぶ：ソース選択をその物件の現在の記号に合わせる
+  const selectSlug = (s: string, currentNumber?: string) => {
+    setSlug(s);
+    setSourceMsg("");
+    const letter = (currentNumber ?? "").split("-")[0];
+    setPropSource(LETTER_TO_CODE[letter] ?? "itandi");
+  };
+
+  // 物件 or 再読み込みでキャプションを取り直し、番号・ソース選択を同期
   useEffect(() => {
     if (!slug) {
       setCaption("");
@@ -62,23 +72,47 @@ export default function InstagramPage() {
     }
     setCaptionLoading(true);
     setCopied(false);
-    const q = `slug=${encodeURIComponent(slug)}${source ? `&source=${source}` : ""}`;
-    fetch(`/api/og/caption?${q}`)
+    fetch(`/api/og/caption?slug=${encodeURIComponent(slug)}&v=${version}`)
       .then((r) => (r.ok ? r.text() : Promise.reject(new Error("failed"))))
       .then((t) => {
         setCaption(t);
         const m = t.match(/【No\. (.+?)】/);
-        setNumber(m ? m[1] : "");
+        const num = m ? m[1] : "";
+        setNumber(num);
+        const letter = num.split("-")[0];
+        if (LETTER_TO_CODE[letter]) setPropSource(LETTER_TO_CODE[letter]);
       })
       .catch(() => {
         setCaption("（キャプションの取得に失敗しました。slug をご確認ください）");
         setNumber("");
       })
       .finally(() => setCaptionLoading(false));
-  }, [slug, source]);
+  }, [slug, version]);
 
-  const imgUrl = (key: string) =>
-    `/api/og/${key}?slug=${encodeURIComponent(slug)}${source ? `&source=${source}` : ""}`;
+  const imgUrl = (key: string) => `/api/og/${key}?slug=${encodeURIComponent(slug)}&v=${version}`;
+
+  const saveSource = async () => {
+    if (!slug || saving) return;
+    setSaving(true);
+    setSourceMsg("");
+    try {
+      const res = await fetch("/api/estimates/source", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, source: propSource }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.number) throw new Error(d.error ?? "保存に失敗しました");
+      setNumber(d.number);
+      setSourceMsg(`保存しました（No. ${d.number}）`);
+      setList((prev) => prev.map((e) => (e.slug === slug ? { ...e, number: d.number } : e)));
+      setVersion((v) => v + 1); // 画像・キャプションを新番号で再読み込み
+    } catch {
+      setSourceMsg("保存に失敗しました");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const copyCaption = async () => {
     try {
@@ -108,7 +142,7 @@ export default function InstagramPage() {
     setDownloadingAll(true);
     for (const s of SLIDES) {
       await downloadOne(s.key);
-      await new Promise((r) => setTimeout(r, 400)); // 連続DLのブロック回避
+      await new Promise((r) => setTimeout(r, 400));
     }
     setDownloadingAll(false);
   };
@@ -134,7 +168,7 @@ export default function InstagramPage() {
             className="mb-4 flex flex-wrap items-center gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              if (slugInput.trim()) setSlug(slugInput.trim());
+              if (slugInput.trim()) selectSlug(slugInput.trim());
             }}
           >
             <label className="text-xs text-[#5a7a62]">共有URLの slug を直接入力：</label>
@@ -165,7 +199,7 @@ export default function InstagramPage() {
               {list.map((e) => (
                 <button
                   key={e.slug}
-                  onClick={() => setSlug(e.slug)}
+                  onClick={() => selectSlug(e.slug, e.number)}
                   className={[
                     "rounded-xl border px-3 py-2 text-left transition-colors",
                     e.slug === slug
@@ -191,24 +225,36 @@ export default function InstagramPage() {
             </div>
           )}
 
-          {/* ソース記号 */}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <label className="text-xs text-[#5a7a62]">ソース記号（番号の頭文字）：</label>
-            <select
-              value={source}
-              onChange={(e) => setSource(e.target.value)}
-              className="rounded-lg border border-[#b8d898] px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#2d5e3a]"
-            >
-              {SOURCES.map((s) => (
-                <option key={s.code} value={s.code}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-            <span className="text-[11px] text-[#a8c4ae]">
-              ※ここでの変更は番号の頭文字だけに反映されます（連番は変わりません）
-            </span>
-          </div>
+          {/* 取得元（ソース）の選択＋保存：選択中の物件に対して */}
+          {slug && (
+            <div className="mt-4 rounded-xl border border-[#dce8d4] bg-[#f7faf4] p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-xs font-medium text-[#1a2e20]">この物件の取得元（番号の記号）：</label>
+                <select
+                  value={propSource}
+                  onChange={(e) => setPropSource(e.target.value)}
+                  className="rounded-lg border border-[#b8d898] px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#2d5e3a]"
+                >
+                  {SOURCES.map((s) => (
+                    <option key={s.code} value={s.code}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={saveSource}
+                  disabled={saving}
+                  className="rounded-lg bg-[#2d5e3a] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  {saving ? "保存中…" : "このソースで保存"}
+                </button>
+                {sourceMsg && <span className="text-xs text-[#2d5e3a]">{sourceMsg}</span>}
+              </div>
+              <p className="mt-1.5 text-[11px] text-[#a8c4ae]">
+                ※ 保存すると番号の頭文字（T / A / P）が確定し、4枚の画像・キャプションに反映されます。連番は変わりません。
+              </p>
+            </div>
+          )}
         </section>
 
         {!slug ? (
@@ -255,7 +301,7 @@ export default function InstagramPage() {
                   </div>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    key={`${slug}-${source}-${s.key}`}
+                    key={`${slug}-${version}-${s.key}`}
                     src={imgUrl(s.key)}
                     alt={s.label}
                     className="aspect-[1080/1350] w-full bg-slate-100 object-cover"
